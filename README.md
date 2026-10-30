@@ -9,11 +9,11 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
 | Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
 | Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
-| Switch | Image flip, microphone mute, OSD text/date/time, recording schedule enabled |
-| Select | Auto/day/night image mode |
+| Switch | Image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
+| Select | Auto/day/night image mode, verified video profiles, OSD formats, timezone, power frequency, SD recording mode |
 | Text | OSD text content |
-| Button | Pan left/right and tilt up/down, explicitly enabled in options |
-| Sensor | Firmware and last successful read (disabled by default), storage status and percentage used |
+| Button | Pan left/right and tilt up/down (opt-in), restart (disabled by default) |
+| Sensor | Firmware and last successful read (disabled by default), storage status/usage, per-interface IP/MAC/type/link (disabled by default) |
 | Binary sensor | Connection health and recording media readiness |
 
 Settings entities are created only when the camera reports an appropriately typed field. Entity names, modes, errors and icons use Home Assistant translation resources. Entity and device IDs remain stable when you rename the camera or change its address. Missing fields and unsupported calls do not become invented capabilities. Polling runs every 60 seconds; settings actions wait for a fresh read-back and report an error if the camera does not confirm the requested value. Requests are serialized, and a saved address that points to another camera is rejected during setup. The first hardware test model is an **f300**, firmware `v5.1.10.1811061306`. Both physical motors were verified with small moves and inverse moves.
@@ -23,9 +23,9 @@ Settings entities are created only when the camera reports an appropriately type
 1. Add `https://github.com/brylee123/ha-mipc-camera` as a HACS custom repository, category **Integration**, then download MIPC Camera. Unreleased review branches can be tested with manual installation.
 2. Alternatively, copy **only** `custom_components/mipc_camera` into your Home Assistant configuration directory's `custom_components` folder.
 3. Restart Home Assistant.
-4. Open **Settings â†’ Devices & services â†’ Add integration â†’ MIPC Camera**.
+4. Open **Settings > Devices & services > Add integration > MIPC Camera**.
 5. Enter the camera's local hostname/IP (optional port), and its **Device/Admin password**. Your MIPC cloud account password is a different credential. Leave username blank to use the device serial automatically.
-6. Open the integration options to enable PTZ after confirming the camera has motors. Streaming can be disabled or changed between camera profile tokens `p0`â€“`p3`.
+6. Open the integration options to enable PTZ after confirming the camera has motors. Streaming can be disabled or changed between camera profile tokens `p0`-`p3`.
 
 Home Assistant must be able to reach the camera directly. Reserve its LAN address. No MIPC cloud account is used and there is no cloud fallback. Dependency installation initially needs internet access. The camera's own vendor-cloud behavior is outside this integration's control. The camera protocol uses HTTP on the LAN; keep it on a trusted network and do not expose its port to the internet.
 
@@ -47,13 +47,13 @@ Positive X pans right; positive Y tilts up according to the device protocol. The
 
 ## Temporary library bundle
 
-This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `1a6e1cf6a7648247481d270105ae753df527ca31`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
+This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `2c75a29400d0d2ce4ba29e406bb97f6102222c42`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
 
 ## Limits and diagnostics
 
 - No two-way talk audio pipeline or microphone streaming is implemented. Microphone/speaker settings are available where supported.
 - Motion sensitivity remains a setting. Enable **Local motion events** in integration options to add a native Home Assistant motion event entity on supported cameras.
-- No factory reset, disk format, credential/network changes, or automatic firmware updates are exposed.
+- Factory reset is an explicit confirmation-guarded action. Disk format, credential/network changes, and automatic firmware updates are not exposed.
 - Storage usage is a ratio; raw camera storage units have not been assumed to be bytes.
 - Unsupported settings stay absent. A failed later read makes that setting unavailable. Reload the integration to discover newly enabled capabilities.
 - The integration can reconnect an expired session for polling, but does not automatically replay writes.
@@ -142,20 +142,57 @@ actions were disabled for testing, with original settings restored afterward.
 
 ## Video quality
 
-The **Video quality** dropdown shows unique measured frame sizes, such as
-**1920 × 1080** and **640 × 360**, when at least two resolutions are verified.
-Discovery decodes a frame from each advertised local profile using Home Assistant's
-media decoder. This can add several seconds to initial setup. Failed probes are
-not shown as working choices. Firmware labels such as D1/CIF are never translated
-into assumed resolutions; profiles with identical dimensions share one choice.
+The **Video quality** dropdown shows verified playback profiles using the Windows
+client names, with measured dimensions: e.g. **HD1080p (1920 × 1080)**,
+**Standard (640 × 360)**, **Smooth (640 × 360)** on the tested f300. Standard and
+Smooth remain separate because equal dimensions do not prove equal frame rate or
+bitrate. D1/CIF are never translated into assumed sizes. The extracted Auto handler
+only changes its label; no automatic camera mode was found, so none is invented.
 
-Measurements are cached in the configuration entry so choosing a quality does not
-reprobe all streams. Firmware or advertised-profile changes invalidate that cache.
-When fewer than two sizes were measured, discovery retries on a later reload.
-Selecting a quality decodes a fresh frame and verifies its dimensions before saving the profile, then
-reloads the integration, closing the previous stream, including a preloaded one.
-Video and motion listening briefly reconnect. Existing entities and other options
-are preserved. Snapshots and encoder/recording configuration are unchanged.
+Discovery decodes a frame from each advertised local profile and can add seconds
+to setup. Failed probes are not shown as working choices. Results are cached;
+firmware/profile changes invalidate them. With fewer than two verified profiles,
+discovery retries on reload. Selecting a quality verifies a fresh frame before
+saving and reloads the integration, closing the previous stream. Video and motion
+briefly reconnect. Existing entity IDs, other options, snapshots and encoder /
+recording configuration are preserved.
 
-On the tested f300, p0 decoded at 1920×1080; p1/D1 and p2/CIF both decoded at
-640×360. These are measurements of this device, not assumptions about other models.
+## Device settings and maintenance
+
+Controls appear only for correctly typed fields returned by the camera:
+
+- **OSD calendar date**, **OSD clock time**, and **OSD weekday** are independent.
+  The existing date/time switches retain their unique IDs. Live snapshots confirmed
+  the field mapping. Date format supports YYYY-MM-DD / MM-DD-YYYY; clock format is
+  12-hour / 24-hour.
+- **Timezone** uses the camera's advertised IDs, not guessed IANA names. Updating
+  it preserves NTP configuration and avoids writing an old polled timestamp.
+- **Power frequency** follows the MIPC client mapping (0 = 60 Hz, 1 = 50 Hz).
+  An OEM UI in the extracted bundle reverses labels; other OEM firmware needs
+  hardware validation.
+- **Motion alarm action** toggles the motion action alone. **Alarm armed** controls
+  global arming. Both must be enabled to generate motion alerts. Global arming can
+  activate existing IO outputs, snapshots and recording, as configured on the
+  camera. The integration never arms them automatically or rewrites those actions.
+- **SD recording enabled** preserves the existing task mode. **SD recording mode**
+  explicitly selects Off / Continuous; Scheduled appears only with existing time
+  windows. Continuous is all-day recording to camera storage; Scheduled uses the
+  configured time windows. An external MIPC **recording box** is different hardware
+  and is not configured by these controls. No usable SD card was present during
+  validation, so settings readback was verified, but actual footage was not.
+- Per-interface **Local IP address**, **MAC address**, **Connection type**, and
+  **Link status** diagnostic sensors are disabled by default; enable them in the
+  entity list. Ethernet and Wi-Fi are reported separately. Both may be connected;
+  link status does not identify a default route. Wi-Fi passwords, SSIDs and nearby
+  AP lists are excluded from coordinator data. Diagnostics still redact addresses.
+- **Restart** is a configuration button, disabled by default. Enable it in the
+  entity list when needed. It temporarily disconnects the camera.
+- **Factory reset camera** is an explicit action `mipc_camera.factory_reset`,
+  requiring a configuration entry ID and `confirm: true`. It erases settings,
+  credentials and networking, and can require physical access afterward. It is
+  tested with mocks only; the live camera was never factory-reset.
+
+Settings writes are serialized, never retried automatically, and read back before
+reporting success. Reboot/reset cannot be verified through the normal settings
+readback while the camera disconnects; a transport timeout may leave their outcome
+unknown. Check the camera before retrying either maintenance action.

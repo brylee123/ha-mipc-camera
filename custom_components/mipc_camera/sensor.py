@@ -39,7 +39,20 @@ async def async_setup_entry(
         and 0 <= data["used_size"] <= data["size"]
     ):
         keys.append("storage_used")
-    async_add_entities(MipcSensor(entry.runtime_data, entry, key) for key in keys)
+    entities = [MipcSensor(entry.runtime_data, entry, key) for key in keys]
+    for interface in entry.runtime_data.data["settings"].get("network", []):
+        if not isinstance(interface, dict) or not isinstance(
+            interface.get("token"), str
+        ):
+            continue
+        for field in ("mac_address", "ip_address", "connection", "link_status"):
+            if isinstance(interface.get(field), str):
+                entities.append(
+                    MipcNetworkSensor(
+                        entry.runtime_data, entry, interface["token"], field
+                    )
+                )
+    async_add_entities(entities)
 
 
 class MipcSensor(MipcEntity, SensorEntity):
@@ -87,3 +100,28 @@ class MipcSensor(MipcEntity, SensorEntity):
         if type(size) is int and type(used) is int and size > 0 and 0 <= used <= size:
             return round(100 * used / size, 1)
         return None
+
+
+class MipcNetworkSensor(MipcEntity, SensorEntity):
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator, entry, token, field):
+        super().__init__(coordinator, entry)
+        self._token, self._field = token, field
+        self._attr_unique_id = f"{self._id}_network_{token}_{field}"
+        self._attr_translation_key = f"network_{field}"
+        self._attr_translation_placeholders = {"interface": token}
+
+    @property
+    def native_value(self):
+        values = [
+            i
+            for i in self.coordinator.data["settings"].get("network", [])
+            if isinstance(i, dict) and i.get("token") == self._token
+        ]
+        return values[0].get(self._field) if len(values) == 1 else None
+
+    @property
+    def available(self):
+        return super().available and isinstance(self.native_value, str)

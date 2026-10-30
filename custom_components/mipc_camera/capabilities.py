@@ -38,15 +38,49 @@ SETTINGS = (
     ),
     Setting("flip", "Flip image", "switch", ("misc", "flip")),
     Setting("osd_text_enabled", "OSD text", "switch", ("osd", "text_enable")),
-    Setting("osd_date", "OSD date", "switch", ("osd", "date", "date_enable")),
-    Setting("osd_time", "OSD time", "switch", ("osd", "date", "time_enable")),
-    Setting("recording", "Recording", "switch", ("recording", "task", "sch", "enable")),
+    Setting("osd_date", "OSD calendar date", "switch", ("osd", "date", "date_enable")),
+    Setting("osd_time", "OSD clock time", "switch", ("osd", "date", "time_enable")),
+    Setting(
+        "recording",
+        "SD recording enabled",
+        "switch",
+        ("recording", "task", "sch", "enable"),
+    ),
     Setting(
         "day_night",
         "Day/night mode",
         "select",
         ("imaging", "mode"),
         options=("auto", "day", "night"),
+    ),
+    Setting("osd_weekday", "OSD weekday", "switch", ("osd", "week")),
+    Setting(
+        "motion_detection",
+        "Motion alarm action",
+        "switch",
+        ("alert_actions", "actions", "motion_alert", "enable"),
+    ),
+    Setting("alarm_armed", "Alarm armed", "switch", ("alert_actions", "enable")),
+    Setting(
+        "osd_date_format",
+        "OSD date format",
+        "select",
+        ("osd", "date", "format"),
+        options=("YYYY-MM-DD", "MM-DD-YYYY"),
+    ),
+    Setting(
+        "osd_time_format",
+        "OSD time format",
+        "select",
+        ("controls", "time_format"),
+        options=("24_hour", "12_hour"),
+    ),
+    Setting(
+        "power_frequency",
+        "Power frequency",
+        "select",
+        ("controls", "power_frequency"),
+        options=("60_hz", "50_hz"),
     ),
     Setting("osd_text", "OSD text content", "text", ("osd", "text")),
 )
@@ -105,6 +139,37 @@ def settings_for(data, platform):
                     translation_key="microphone_mute",
                     translation_placeholders={"suffix": suffix},
                 ),
+            )
+        )
+    zones = data.get("timezones")
+    if isinstance(zones, list) and zones and all(isinstance(z, str) for z in zones):
+        specs.append(
+            Setting(
+                "timezone",
+                "Timezone",
+                "select",
+                ("ntp", "timezone"),
+                options=tuple(zones),
+            )
+        )
+    recording = value_at(data, ("recording", "task", "sch"))
+    if (
+        isinstance(recording, dict)
+        and type(recording.get("full_time")) in (bool, int)
+        and recording["full_time"] in (0, 1)
+    ):
+        choices = (
+            ("off", "continuous", "scheduled")
+            if recording.get("times")
+            else ("off", "continuous")
+        )
+        specs.append(
+            Setting(
+                "recording_mode",
+                "SD recording mode",
+                "select",
+                ("controls", "recording_mode"),
+                options=choices,
             )
         )
     return [s for s in specs if s.platform == platform and supported(s, data)]
