@@ -160,3 +160,33 @@ def test_microphones_are_stable_by_token():
     data["microphones"].append({"token": "mic1", "level": 30, "silent": 1})
     specs = settings_for(data, "number")
     assert {s.path[1] for s in specs if s.path[0] == "microphones"} == {"mic0", "mic1"}
+
+
+async def test_consecutive_writes_wait_for_fresh_camera_state(hass, hub):
+    def update(spec, value):
+        hub.settings["imaging"]["brightness"] = value
+
+    hub.set_value.side_effect = update
+    await setup(hass, hub)
+    brightness = next(
+        s.entity_id
+        for s in hass.states.async_all()
+        if s.domain == "number" and "brightness" in s.entity_id
+    )
+    for value in (55, 56):
+        await hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": brightness, "value": value},
+            blocking=True,
+        )
+        assert float(hass.states.get(brightness).state) == value
+    assert hub.refresh.call_count == 3
+
+
+async def test_empty_card_slot_has_no_usage_percentage(hass, hub):
+    hub.settings["disks"][0].update(stat="empty", size=0, used_size=0)
+    await setup(hass, hub)
+    sensors = [s for s in hass.states.async_all() if s.domain == "sensor"]
+    assert any("storage_status" in s.entity_id and s.state == "empty" for s in sensors)
+    assert not any("storage_used" in s.entity_id for s in sensors)

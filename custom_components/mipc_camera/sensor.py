@@ -21,7 +21,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     data = disk(entry.runtime_data.data["settings"])
     if isinstance(data.get("stat"), str):
         keys.append("storage_status")
-    if type(data.get("size")) is int and type(data.get("used_size")) is int:
+    if (
+        type(data.get("size")) is int
+        and type(data.get("used_size")) is int
+        and data["size"] > 0
+        and 0 <= data["used_size"] <= data["size"]
+    ):
         keys.append("storage_used")
     async_add_entities(MipcSensor(entry.runtime_data, entry, key) for key in keys)
 
@@ -54,6 +59,6 @@ class MipcSensor(MipcEntity, SensorEntity):
         if self.key == "storage_status":
             return current.get("stat")
         size, used = current.get("size"), current.get("used_size")
-        if type(size) is int and type(used) is int and size > 0:
+        if type(size) is int and type(used) is int and size > 0 and 0 <= used <= size:
             return round(100 * used / size, 1)
         return None

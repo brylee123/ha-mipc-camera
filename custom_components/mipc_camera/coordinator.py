@@ -40,4 +40,6 @@ class MipcCoordinator(DataUpdateCoordinator[dict]):
             raise HomeAssistantError(
                 f"Camera setting failed ({type(error).__name__})"
             ) from error
-        await self.async_request_refresh()
+        # A user write needs read-back before the action finishes; ordinary
+        # polling requests may be delayed by the coordinator's debounce timer.
+        await self.async_refresh()
