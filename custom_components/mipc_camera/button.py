@@ -90,12 +90,4 @@ class MipcRestartButton(MipcEntity, ButtonEntity):
         self._attr_unique_id = f"{self._id}_restart"
 
     async def async_press(self):
-        async with self.coordinator._write_lock:
-            try:
-                await self.hass.async_add_executor_job(self._hub.reboot)
-            except (MipcError, OSError, ValueError) as error:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="setting_failed",
-                    translation_placeholders={"error": type(error).__name__},
-                ) from error
+        await self.coordinator.async_restart()

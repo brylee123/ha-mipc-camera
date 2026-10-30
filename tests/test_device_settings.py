@@ -209,16 +209,23 @@ async def test_restart_button_reports_failures_without_retry(hass, hub):
     with patch.object(MipcRestartButton, "_attr_entity_registry_enabled_default", True):
         config = await setup(hass, hub)
     target = entity_id(hass, config, "restart")
-    await hass.services.async_call(
-        "button", "press", {"entity_id": target}, blocking=True
-    )
-    hub.reboot.assert_called_once_with()
-    hub.reboot.side_effect = MipcProtocolError("ccm_reboot")
-    with pytest.raises(HomeAssistantError):
+    from unittest.mock import AsyncMock
+
+    with patch.object(
+        config.runtime_data, "_async_finish_restart", new=AsyncMock()
+    ) as recovery:
         await hass.services.async_call(
             "button", "press", {"entity_id": target}, blocking=True
         )
-    assert hub.reboot.call_count == 2
+        await config.runtime_data._restart_task
+        recovery.assert_awaited_once()
+        hub.reboot.assert_called_once_with()
+        hub.reboot.side_effect = MipcProtocolError("ccm_reboot")
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                "button", "press", {"entity_id": target}, blocking=True
+            )
+        assert hub.reboot.call_count == 2 and recovery.await_count == 1
 
 
 async def test_factory_reset_requires_confirmation_and_loaded_target(hass, hub):
@@ -249,3 +256,75 @@ async def test_factory_reset_requires_confirmation_and_loaded_target(hass, hub):
             blocking=True,
         )
     assert hub.factory_reset.call_count == 2
+
+
+async def test_restart_recovery_waits_for_partial_controls_and_reloads_once(hass, hub):
+    from unittest.mock import AsyncMock
+
+    config = await setup(hass, hub)
+    coordinator = config.runtime_data
+    expected = {
+        s.key
+        for p in ("switch", "number", "select", "text")
+        for s in settings_for(hub.settings, p)
+    }
+    sections = set(hub.settings)
+    values = [
+        {"settings": {}, "errors": {}},
+        {"settings": deepcopy(hub.settings), "errors": {}},
+    ]
+    with (
+        patch.object(coordinator, "async_refresh", new=AsyncMock()) as refresh,
+        patch(
+            "custom_components.mipc_camera.coordinator.asyncio.sleep", new=AsyncMock()
+        ),
+        patch.object(hass.config_entries, "async_schedule_reload") as reload,
+    ):
+
+        async def update():
+            coordinator.async_set_updated_data(values.pop(0))
+
+        refresh.side_effect = update
+        await coordinator._async_finish_restart(expected, sections)
+        assert refresh.await_count == 2
+        reload.assert_called_once_with(config.entry_id)
+    hub.reboot.assert_not_called()
+
+
+async def test_restart_recovery_is_bounded_and_never_replays_command(hass, hub):
+    from unittest.mock import AsyncMock
+
+    config = await setup(hass, hub)
+    coordinator = config.runtime_data
+    coordinator.last_update_success = False
+    with (
+        patch.object(coordinator, "async_refresh", new=AsyncMock()) as refresh,
+        patch(
+            "custom_components.mipc_camera.coordinator.asyncio.sleep", new=AsyncMock()
+        ),
+        patch.object(hass.config_entries, "async_schedule_reload") as reload,
+    ):
+        await coordinator._async_finish_restart({"brightness"}, {"imaging"})
+        assert refresh.await_count == 12
+        reload.assert_called_once_with(config.entry_id)
+    hub.reboot.assert_not_called()
+
+
+async def test_restart_in_progress_prevents_duplicate_command_and_unload_cancels(
+    hass, hub
+):
+    import asyncio
+
+    config = await setup(hass, hub)
+
+    async def hold(*args):
+        await asyncio.Event().wait()
+
+    with patch.object(config.runtime_data, "_async_finish_restart", new=hold):
+        await config.runtime_data.async_restart()
+        task = config.runtime_data._restart_task
+        with pytest.raises(HomeAssistantError):
+            await config.runtime_data.async_restart()
+        hub.reboot.assert_called_once_with()
+        assert await hass.config_entries.async_unload(config.entry_id)
+        assert task.cancelled()

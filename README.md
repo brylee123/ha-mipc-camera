@@ -188,7 +188,9 @@ Controls appear only for correctly typed fields returned by the camera:
   link status does not identify a default route. Wi-Fi passwords, SSIDs and nearby
   AP lists are excluded from coordinator data. Diagnostics still redact addresses.
 - **Restart** is a configuration button, disabled by default. Enable it in the
-  entity list when needed. It temporarily disconnects the camera.
+  entity list when needed. It temporarily disconnects the camera. Recovery waits
+  for known controls to return, then reloads the integration to create a fresh
+  media session. Recovery is bounded and never repeats the reboot command.
 - **Factory reset camera** is an explicit action `mipc_camera.factory_reset`,
   requiring a configuration entry ID and `confirm: true`. It erases settings,
   credentials and networking, and can require physical access afterward. It is

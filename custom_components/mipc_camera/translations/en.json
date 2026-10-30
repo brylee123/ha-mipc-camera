@@ -304,6 +304,9 @@
     },
     "reset_confirmation_required": {
       "message": "Factory reset erases camera settings, credentials and networking. Set confirm to true only when you intend to reset this camera."
+    },
+    "restart_in_progress": {
+      "message": "Camera restart recovery is already in progress. Wait for the camera to reconnect."
     }
   }
 }
