@@ -1,29 +1,20 @@
-"""Sanitized diagnostics; never export authentication material or stream URLs."""
+"""Explicit whitelist: no raw device documents, credentials, IDs or media URLs."""
 
-from importlib.metadata import version
-
-from homeassistant.helpers.redact import async_redact_data
-
-from .const import DOMAIN
+from ._vendor import LIBRARY_COMMIT, LIBRARY_VERSION
+from .const import DEFAULT_OPTIONS
 
 
-async def async_get_config_entry_diagnostics(hass, entry) -> dict:
+async def async_get_config_entry_diagnostics(hass, entry):
     coordinator = entry.runtime_data
-    hub = coordinator.hub
     return {
-        "integration": DOMAIN,
-        "library_version": version("mipc-camera-client"),
+        "library_version": LIBRARY_VERSION,
+        "library_commit": LIBRARY_COMMIT,
         "connected": coordinator.last_update_success,
-        "last_seen": hub.last_seen.isoformat() if hub.last_seen else None,
-        "last_error_type": hub.last_error,
-        "camera": async_redact_data(
-            {
-                "host": hub.host,
-                "serial_number": hub.serial_number,
-                "model": hub.model,
-            },
-            {"host", "serial_number"},
-        ),
-        "options": dict(entry.options),
-        "api_features": ["jpeg_snapshot", "rtmp_stream", "relative_ptz", "device_info"],
+        "model": coordinator.hub.model,
+        "firmware": coordinator.hub.firmware,
+        "readable_sections": sorted(coordinator.data.get("settings", {})),
+        "section_errors": dict(coordinator.data.get("errors", {})),
+        "options": {
+            key: entry.options.get(key, value) for key, value in DEFAULT_OPTIONS.items()
+        },
     }

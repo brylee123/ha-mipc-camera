@@ -1,0 +1,7 @@
+homeassistant==2026.10.4
+pytest-homeassistant-custom-component==0.13.375
+json5==0.9.28
+pycryptodome==3.24.1
+PyTurboJPEG==1.8.2
+av==19.0.2
+ruff==0.14.0

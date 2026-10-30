@@ -1,125 +1,198 @@
-"""Synchronous MIPC client adapter; run all public calls in an executor.
+"""Synchronous, serialized adapter for the temporarily bundled local client."""
 
-The upstream 0.1.3 client uses requests without a timeout and a mutable
-session counter. This adapter bounds requests and serializes access.
-"""
-
-from datetime import datetime, timezone
-from functools import partial
-import ipaddress
 import threading
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
-from mipc_camera_client import MipcCameraClient
-from requests.exceptions import RequestException
+from ._vendor.mipc_camera_client import (
+    MipcAuthenticationError,
+    MipcCameraClient,
+    MipcError,
+    MipcProtocolError,
+    MipcTransportError,
+    MipcUnsupportedError,
+)
+from .capabilities import value_at
 
-class MipcAuthenticationError(Exception):
-    """Authentication rejected by the camera."""
-
-class MipcCommunicationError(Exception):
-    """Unexpected camera response or unsupported protocol."""
 
 class MipcHub:
-    """Own one MIPC session for one physical camera."""
-
-    def __init__(self, host: str, username: str, password: str) -> None:
-        self.host = host
-        self.username = username
-        self._password = password
+    def __init__(self, host, username, password):
+        self.host, self.username, self._password = host, username, password
         self._lock = threading.RLock()
-        self._client: MipcCameraClient | None = None
-        self.info: dict = {}
-        self.last_seen: datetime | None = None
-        self.last_error: str | None = None
+        self._client = None
+        self.info, self.settings, self.errors = {}, {}, {}
+        self.last_seen = None
+        self.video_token = "vs0"
 
     @property
-    def serial_number(self) -> str | None:
-        sn = self.info.get("sn")
-        return str(sn) if sn else None
+    def serial_number(self):
+        return self.info.get("sn")
 
     @property
-    def model(self) -> str:
-        return str(self.info.get("model") or self.info.get("product") or "IP camera")
+    def model(self):
+        props = {
+            p.get("n"): p.get("v")
+            for p in self.info.get("p", [])
+            if isinstance(p, dict)
+        }
+        return self.info.get("model") or props.get("model") or "IP camera"
 
-    def _get_client(self) -> MipcCameraClient:
+    @property
+    def firmware(self):
+        return self.info.get("img_ver") or self.info.get("ver")
+
+    def _get_client(self):
         if self._client is None:
-            raise MipcCommunicationError("Camera session not initialized")
+            raise MipcProtocolError("connection")
         return self._client
 
-    def connect(self) -> dict:
-        """Authenticate and fetch identity (blocking)."""
+    def connect(self):
         with self._lock:
-            client = MipcCameraClient(self.host)
-            # Upstream requests.Session.request has no timeout. This is a
-            # per-instance bound method wrapper; do not monkeypatch requests globally.
-            client._r.request = partial(client._r.request, timeout=10)
+            self.close()
+            client = MipcCameraClient(self.host, timeout=8)
             try:
-                client.login(self.username, self._password)
-            except RequestException:
-                raise
-            except Exception as err:
-                raise MipcAuthenticationError("Camera login was rejected") from err
-            self._client = client
-            return self.refresh()
-
-    def refresh(self) -> dict:
-        """Check live network connectivity, not the client's cached serial."""
-        with self._lock:
-            try:
-                result = self._get_client().run_rpc("ccm_info_get", {})
-                data = result.get("data") if isinstance(result, dict) else None
-                if not isinstance(data, dict) or not data.get("sn"):
-                    raise MipcCommunicationError("No device identity in camera reply")
-                self.info = data
-                self.last_seen = datetime.now(timezone.utc)
-                self.last_error = None
-                return data
-            except Exception as err:
-                self.last_error = type(err).__name__
+                basic = client.get_info()
+                serial = basic.get("sn")
+                if not isinstance(serial, str) or not serial:
+                    raise MipcProtocolError("ccm_info_get")
+                if self.serial_number and self.serial_number != serial:
+                    raise MipcProtocolError("identity_changed")
+                client.login(self.username or serial, self._password)
+                self._client = client
+                self.info = basic
+                try:
+                    self.info.update(client.get_device_info())
+                except MipcAuthenticationError:
+                    raise
+                except (MipcUnsupportedError, MipcProtocolError):
+                    pass
+                return self.info
+            except Exception:
+                client.close()
+                self._client = None
                 raise
 
-    def snapshot(self) -> bytes:
+    def refresh(self):
         with self._lock:
-            image = self._get_client().get_image()
-            if not isinstance(image, bytes) or not image.startswith(b"\xff\xd8"):
-                raise MipcCommunicationError("Camera returned non-JPEG data")
-            return image
+            try:
+                return self._refresh_once()
+            except MipcAuthenticationError:
+                # Session renewal retries reads only, never a settings write.
+                self.connect()
+                return self._refresh_once()
 
-    @staticmethod
-    def _is_local_endpoint(stream_host: str, camera_host: str) -> bool:
-        if stream_host.lower() == camera_host.lower():
-            return True
-        if stream_host.lower().endswith((".local", ".lan", ".home.arpa")):
-            return True
-        try:
-            address = ipaddress.ip_address(stream_host)
-            return address.is_private or address.is_loopback or address.is_link_local
-        except ValueError:
-            return False
+    def _refresh_once(self):
+        client = self._get_client()
+        basic = client.get_info()
+        if basic.get("sn") != self.serial_number:
+            raise MipcProtocolError("identity_changed")
+        self.info.update(basic)
+        settings, errors = {}, {}
+        reads = {
+            "device": client.get_device_info,
+            "video_sources": client.get_video_sources,
+            "microphones": client.get_microphones,
+            "speaker": client.get_speaker,
+            "imaging": lambda: client.get_imaging(self.video_token),
+            "misc": client.get_misc,
+            "osd": client.get_osd,
+            "alerts": client.get_alert_config,
+            "recording": client.get_recording,
+            "disks": client.get_disks,
+        }
+        for section, read in reads.items():
+            try:
+                settings[section] = read()
+                if section == "video_sources" and settings[section]:
+                    token = settings[section][0].get("token")
+                    if isinstance(token, str) and token:
+                        self.video_token = token
+            except MipcAuthenticationError:
+                raise
+            except MipcTransportError as error:
+                if not error.code.startswith("http_"):
+                    raise
+                errors[section] = type(error).__name__
+            except MipcError as error:
+                errors[section] = type(error).__name__
+        self.info.update(settings.get("device", {}))
+        self.settings, self.errors = settings, errors
+        self.last_seen = datetime.now(timezone.utc)
+        return {"settings": settings, "errors": errors}
 
-    def stream_url(self, token: str, allow_remote: bool) -> str:
-        """Return URL suitable for FFmpeg; reject cloud hosts by default."""
+    def snapshot(self):
         with self._lock:
-            url = self._get_client().get_rtmp_stream(token=token)
-        if not isinstance(url, str):
-            raise MipcCommunicationError("Camera did not return a stream URL")
-        parsed = urlsplit(url)
-        if parsed.scheme.lower() not in ("rtmp", "rtmps") or not parsed.hostname:
-            raise MipcCommunicationError("Camera did not return an RTMP URL")
-        if not allow_remote and not self._is_local_endpoint(parsed.hostname, self.host):
-            raise MipcCommunicationError(
-                "Stream points outside the LAN; enable remote streaming explicitly"
-            )
-        return url
+            return self._get_client().get_image()
 
-    def move(self, x: int, y: int, speed_x: int, speed_y: int) -> None:
+    def stream_url(self, token):
         with self._lock:
-            self._get_client().control_ptz(
-                tilt_x=x, tilt_y=y, speed_x=speed_x, speed_y=speed_y
-            )
+            # The library rejects media hosts other than the configured camera.
+            return self._get_client().get_stream_url(token)
 
-    def close(self) -> None:
+    def move(self, x, y, speed_x, speed_y):
+        with self._lock:
+            self._get_client().control_ptz(x, y, speed_x, speed_y)
+
+    def set_value(self, spec, value):
+        with self._lock:
+            client = self._get_client()
+            if value_at(self.settings, spec.path) is None:
+                raise MipcProtocolError("setting_unavailable")
+            section, *tail = spec.path
+            field = tail[-1]
+            if section == "imaging":
+                client.set_imaging(field, value, self.video_token)
+            elif section == "speaker":
+                client.set_speaker_level(
+                    value, self.settings[section].get("token", "ao0")
+                )
+            elif section == "microphones":
+                client.update_microphone(tail[0], **{field: value})
+            elif section == "misc":
+                client.set_flip(value)
+            elif section == "osd":
+                patch = {field: int(value) if spec.platform == "switch" else value}
+                client.update_osd(**({"date": patch} if len(tail) == 2 else patch))
+            elif section == "alerts":
+                client.update_alert_config(**{field: value})
+            elif section == "recording":
+                client.set_recording_enabled(value)
+            else:
+                raise ValueError("Unsupported setting")
+
+    def close(self):
         with self._lock:
             if self._client is not None:
-                self._client._r.close()
-                self._client = None
+                client, self._client = self._client, None
+                try:
+                    client.logout()
+                except MipcError:
+                    pass
+                finally:
+                    client.close()
+
+
+def valid_host(host):
+    if (
+        not isinstance(host, str)
+        or not host
+        or any(c.isspace() for c in host)
+        or "\\" in host
+    ):
+        return False
+    try:
+        parsed = urlsplit("http://" + host)
+        return (
+            bool(parsed.hostname)
+            and not (
+                parsed.username
+                or parsed.password
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or host.endswith(":")
+            )
+            and parsed.port != 0
+        )
+    except ValueError:
+        return False

@@ -6,7 +6,10 @@ from homeassistant.components.button import ButtonEntity, ButtonEntityDescriptio
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
-    CONF_ENABLE_PTZ, CONF_PAN_SPEED, CONF_PTZ_STEP, CONF_TILT_SPEED,
+    CONF_ENABLE_PTZ,
+    CONF_PAN_SPEED,
+    CONF_PTZ_STEP,
+    CONF_TILT_SPEED,
     DEFAULT_OPTIONS,
 )
 from .entity import MipcEntity
@@ -19,10 +22,18 @@ class MipcButtonDescription(ButtonEntityDescription):
 
 
 DESCRIPTIONS = (
-    MipcButtonDescription(key="pan_left", translation_key="pan_left", icon="mdi:arrow-left", x=-1, y=0),
-    MipcButtonDescription(key="pan_right", translation_key="pan_right", icon="mdi:arrow-right", x=1, y=0),
-    MipcButtonDescription(key="tilt_up", translation_key="tilt_up", icon="mdi:arrow-up", x=0, y=1),
-    MipcButtonDescription(key="tilt_down", translation_key="tilt_down", icon="mdi:arrow-down", x=0, y=-1),
+    MipcButtonDescription(
+        key="pan_left", translation_key="pan_left", icon="mdi:arrow-left", x=-1, y=0
+    ),
+    MipcButtonDescription(
+        key="pan_right", translation_key="pan_right", icon="mdi:arrow-right", x=1, y=0
+    ),
+    MipcButtonDescription(
+        key="tilt_up", translation_key="tilt_up", icon="mdi:arrow-up", x=0, y=1
+    ),
+    MipcButtonDescription(
+        key="tilt_down", translation_key="tilt_down", icon="mdi:arrow-down", x=0, y=-1
+    ),
 )
 
 
@@ -31,8 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     if not options[CONF_ENABLE_PTZ]:
         return
     async_add_entities(
-        MipcPtzButton(entry.runtime_data, entry, desc, options)
-        for desc in DESCRIPTIONS
+        MipcPtzButton(entry.runtime_data, entry, desc, options) for desc in DESCRIPTIONS
     )
 
 
