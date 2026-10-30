@@ -70,6 +70,7 @@ async def test_quality_selection_negotiates_and_reloads_stream_with_same_identit
     )
     assert hass.states.get(entity).state == "640 × 360"
     replacement = get_camera_from_entity_id(hass, camera_id)
+    hub.check_stream_profile.assert_called_once_with("p1", 640, 360)
     assert replacement is not original
     hub.discover_stream_profiles.assert_called_once_with()
     previous_stream.stop.assert_awaited_once()
@@ -90,7 +91,7 @@ async def test_quality_failure_preserves_previous_profile_and_options(hass, hub)
     hub.info["p"] = [{"n": "p0", "v": "HD1080p"}, {"n": "p1", "v": "D1"}]
     config = await quality_setup(hass, hub)
     entity = quality_id(hass, config)
-    hub.stream_url.side_effect = MipcProtocolError("ccm_play")
+    hub.check_stream_profile.side_effect = MipcProtocolError("ccm_play")
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
             "select",

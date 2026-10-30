@@ -110,9 +110,15 @@ class MipcVideoQuality(MipcEntity, SelectEntity):
             )
         if option == self.current_option:
             return
+        profile = next(p for p in self._verified if p["token"] == token)
         try:
-            # Negotiate on the camera before persisting; credentials/URLs stay private.
-            await self.hass.async_add_executor_job(self._hub.stream_url, token)
+            # Decode before persisting; credentials/URLs stay private.
+            await self.hass.async_add_executor_job(
+                self._hub.check_stream_profile,
+                token,
+                profile["width"],
+                profile["height"],
+            )
         except (MipcError, OSError, ValueError) as error:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

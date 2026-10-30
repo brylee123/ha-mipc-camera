@@ -318,3 +318,24 @@ def test_profile_discovery_uses_bounded_decoder_and_returns_measured_metadata():
         ]
         assert decoder.call_args.kwargs["timeout"] == (8, 8)
         hub.close()
+
+
+def test_profile_selection_requires_matching_fresh_frame_before_saving():
+    c = client()
+    with patch("custom_components.mipc_camera.api.MipcCameraClient", return_value=c):
+        hub = MipcHub("192.0.2.10", "", "private")
+        hub.connect()
+        with patch.object(hub, "_decode_stream_dimensions", return_value=(640, 360)):
+            hub.check_stream_profile("p1", 640, 360)
+            with pytest.raises(MipcProtocolError):
+                hub.check_stream_profile("p0", 1920, 1080)
+        hub.close()
+
+
+def test_empty_media_is_a_protocol_error_instead_of_an_executor_stop_iteration():
+    from custom_components.mipc_camera.api import MipcHub
+
+    media = MagicMock()
+    media.__enter__.return_value.decode.return_value = iter([])
+    with patch("av.open", return_value=media), pytest.raises(MipcProtocolError):
+        MipcHub._decode_stream_dimensions("rtmp://192.0.2.10/test")

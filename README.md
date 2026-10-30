@@ -152,7 +152,7 @@ into assumed resolutions; profiles with identical dimensions share one choice.
 Measurements are cached in the configuration entry so choosing a quality does not
 reprobe all streams. Firmware or advertised-profile changes invalidate that cache.
 When fewer than two sizes were measured, discovery retries on a later reload.
-Selecting a quality validates local stream negotiation, saves the profile, and
+Selecting a quality decodes a fresh frame and verifies its dimensions before saving the profile, then
 reloads the integration, closing the previous stream, including a preloaded one.
 Video and motion listening briefly reconnect. Existing entities and other options
 are preserved. Snapshots and encoder/recording configuration are unchanged.
