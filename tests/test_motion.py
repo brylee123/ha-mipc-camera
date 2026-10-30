@@ -3,12 +3,13 @@
 import asyncio
 import time
 from copy import deepcopy
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers import entity_registry as er
 
+from custom_components.mipc_camera._vendor.mipc_camera_client import MipcCameraClient
 from custom_components.mipc_camera.api import MipcTransportError, MipcUnsupportedError
 from custom_components.mipc_camera.motion import (
     MipcMotionCoordinator,
@@ -51,6 +52,9 @@ def test_unknown_action_schema_is_not_capability(document):
 
 async def motion_setup(hass, hub):
     hub.settings["alert_actions"] = deepcopy(ACTIONS)
+    hub.create_event_client.return_value = create_autospec(
+        MipcCameraClient, instance=True
+    )
     with patch.object(MipcMotionCoordinator, "start"):
         config = await setup(hass, hub, {"motion_events": True})
     entity = next(
@@ -120,7 +124,7 @@ async def test_native_listener_uses_separate_queue_and_closes_on_stop(hass, hub)
     motion.start()
     await motion._task
     await motion.async_stop()
-    client.event_queue.assert_called_once_with(300)
+    client.event_queue.assert_called_once_with(lifetime=300)
     queue.close.assert_called_once()
     client.close.assert_called_once()
     assert not motion.last_update_success
@@ -139,7 +143,7 @@ async def test_unsupported_subscription_is_not_retried(hass, hub):
 
 async def test_timeout_reopens_queue_without_replaying_writes(hass, hub):
     _, motion, _ = await motion_setup(hass, hub)
-    first, second = MagicMock(), MagicMock()
+    first, second = (create_autospec(MipcCameraClient, instance=True) for _ in range(2))
     first.event_queue.return_value.poll.side_effect = MipcTransportError(
         "mmq_pick", "timeout"
     )
@@ -221,3 +225,26 @@ async def test_events_seen_while_settings_offline_are_not_replayed_on_recovery(
     assert hass.states.get(entity).attributes["message_id"] == 1
     motion.process([pulse(3)])
     assert hass.states.get(entity).attributes["message_id"] == 3
+
+
+@pytest.mark.parametrize("cancelled", [True, False])
+async def test_stop_drains_cancelled_or_failed_worker_without_breaking_unload(
+    hass, hub, cancelled
+):
+    _, motion, _ = await motion_setup(hass, hub)
+
+    async def fail():
+        raise RuntimeError("synthetic worker failure")
+
+    if cancelled:
+        task = hass.async_create_task(asyncio.Event().wait())
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    else:
+        task = hass.async_create_task(fail())
+        with pytest.raises(RuntimeError):
+            await task
+    motion._task = task
+    await motion.async_stop()
+    assert task.done()

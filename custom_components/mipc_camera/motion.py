@@ -5,6 +5,7 @@ import logging
 import time
 from collections import deque
 from contextlib import suppress
+from functools import partial
 from typing import TYPE_CHECKING
 
 from homeassistant.core import callback
@@ -76,7 +77,12 @@ class MipcMotionCoordinator(DataUpdateCoordinator[MotionEvent | None]):
     async def async_stop(self) -> None:
         self._stop.set()
         if self._task:
-            await self._task
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                _LOGGER.exception("MIPC motion listener stopped unexpectedly")
 
     @callback
     def process(self, items: list[dict]) -> None:
@@ -115,8 +121,7 @@ class MipcMotionCoordinator(DataUpdateCoordinator[MotionEvent | None]):
                         cleanup_result=close_event_client,
                     )
                     queue = await self._job(
-                        client.event_queue,
-                        300,
+                        partial(client.event_queue, lifetime=300),
                         cleanup_result=lambda queue: queue.close(),
                     )
                     while not self._stop.is_set():
