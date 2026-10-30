@@ -1,23 +1,45 @@
-"""Poll camera availability and information."""
+"""One bounded poll for a physical camera and verified settings writes."""
 
+import logging
+
+from homeassistant.config_entries import ConfigEntryAuthFailed
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import MipcHub
+from .api import MipcAuthenticationError, MipcError
 from .const import DOMAIN, SCAN_INTERVAL
 
 
 class MipcCoordinator(DataUpdateCoordinator[dict]):
-    """Data coordinator for an individual camera."""
-
-    def __init__(self, hass, hub: MipcHub) -> None:
+    def __init__(self, hass, entry, hub):
         super().__init__(
-            hass, logger=__import__("logging").getLogger(__name__),
-            name=DOMAIN, update_interval=SCAN_INTERVAL,
+            hass,
+            logging.getLogger(__name__),
+            name=DOMAIN,
+            config_entry=entry,
+            update_interval=SCAN_INTERVAL,
         )
         self.hub = hub
 
-    async def _async_update_data(self) -> dict:
+    async def _async_update_data(self):
         try:
             return await self.hass.async_add_executor_job(self.hub.refresh)
-        except Exception as err:
-            raise UpdateFailed(f"MIPC camera check failed ({type(err).__name__})") from err
+        except MipcAuthenticationError as error:
+            raise ConfigEntryAuthFailed(
+                "Camera device credentials were rejected"
+            ) from error
+        except (MipcError, OSError) as error:
+            raise UpdateFailed(
+                f"Camera update failed ({type(error).__name__})"
+            ) from error
+
+    async def async_set_value(self, spec, value):
+        try:
+            await self.hass.async_add_executor_job(self.hub.set_value, spec, value)
+        except (MipcError, ValueError, OSError) as error:
+            raise HomeAssistantError(
+                f"Camera setting failed ({type(error).__name__})"
+            ) from error
+        # A user write needs read-back before the action finishes; ordinary
+        # polling requests may be delayed by the coordinator's debounce timer.
+        await self.async_refresh()

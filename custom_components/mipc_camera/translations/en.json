@@ -2,35 +2,54 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to MIPC camera",
-        "description": "Use the camera's local LAN address and device credentials.",
+        "title": "Connect to a MIPC camera",
+        "description": "Use its local address and Device/Admin PW. Leave the username blank to use its device ID automatically. The MIPC cloud account password does not work here.",
         "data": {
-          "host": "Camera hostname or IP address",
-          "username": "Username",
-          "password": "Password"
+          "host": "Camera address (optional port)",
+          "username": "Device username (optional)",
+          "password": "Device/Admin PW"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Renew camera credentials",
+        "description": "Enter the camera Device/Admin PW.",
+        "data": {
+          "username": "Device username (optional)",
+          "password": "Device/Admin PW"
+        }
+      },
+      "reconfigure": {
+        "title": "Update the camera connection",
+        "data": {
+          "host": "Camera address (optional port)",
+          "username": "Device username (optional)",
+          "password": "Device/Admin PW"
         }
       }
     },
     "error": {
-      "invalid_host": "Enter a hostname or IPv4 address, without a URL scheme or port.",
-      "invalid_auth": "The camera rejected these credentials.",
-      "cannot_connect": "Cannot connect to the camera.",
-      "unknown": "Unexpected camera response."
+      "invalid_host": "Enter a hostname or IP address, optionally with a port, without a URL scheme or path.",
+      "invalid_auth": "The camera rejected the device credentials.",
+      "cannot_connect": "Cannot reach the camera.",
+      "unknown": "Unexpected camera response.",
+      "device_mismatch": "This address belongs to a different camera."
     },
     "abort": {
-      "already_configured": "This camera is already configured."
+      "already_configured": "This camera is already configured.",
+      "reauth_successful": "Camera credentials updated.",
+      "reconfigure_successful": "Camera connection updated."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "MIPC camera controls",
+        "title": "Camera options",
+        "description": "Enable pan/tilt only for cameras with verified motor support. Media connections stay on the configured camera host.",
         "data": {
-          "enable_ptz": "Enable PTZ controls",
-          "enable_stream": "Enable live stream",
-          "stream_token": "RTMP stream token",
-          "allow_remote_stream": "Allow nonlocal stream URL (privacy risk)",
-          "ptz_step": "PTZ movement per button press",
+          "enable_ptz": "Enable pan/tilt motors",
+          "enable_stream": "Enable live video",
+          "stream_token": "Stream quality token",
+          "ptz_step": "Movement per press",
           "pan_speed": "Pan speed",
           "tilt_speed": "Tilt speed"
         }
@@ -51,19 +70,12 @@
       "tilt_down": {
         "name": "Tilt down"
       }
-    },
-    "sensor": {
-      "serial_number": {
-        "name": "Serial number"
-      },
-      "last_seen": {
-        "name": "Last seen"
-      }
-    },
-    "binary_sensor": {
-      "online": {
-        "name": "Connection"
-      }
+    }
+  },
+  "services": {
+    "move": {
+      "name": "Move camera",
+      "description": "Send a relative movement to an explicitly enabled pan/tilt camera."
     }
   }
 }
