@@ -12,6 +12,7 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import config_validation as cv
 
+from ._vendor.mipc_camera_client.profiles import stream_profiles
 from .api import MipcAuthenticationError, MipcError, MipcHub
 from .const import (
     CONF_ENABLE_PTZ,
@@ -97,6 +98,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool
             )
         coordinator = MipcCoordinator(hass, entry, hub)
         await coordinator.async_config_entry_first_refresh()
+        advertised = stream_profiles(hub.info)
+        signature = [hub.firmware, [[p.token, p.name] for p in advertised]]
+        if len(advertised) > 1 and entry.data.get("profile_signature") != signature:
+            try:
+                profiles = await hass.async_add_executor_job(
+                    hub.discover_stream_profiles
+                )
+            except MipcAuthenticationError:
+                raise
+            except (MipcError, OSError):
+                profiles = []
+            hass.config_entries.async_update_entry(
+                entry,
+                data={
+                    **entry.data,
+                    "profile_signature": signature
+                    if len(
+                        {
+                            (p.get("width"), p.get("height"))
+                            for p in profiles
+                            if p.get("width") and p.get("height")
+                        }
+                    )
+                    > 1
+                    else None,
+                    "stream_profiles": profiles,
+                },
+            )
         entry.runtime_data = coordinator
         if entry.options.get(CONF_MOTION_EVENTS, False) and motion_supported(
             coordinator.data["settings"]

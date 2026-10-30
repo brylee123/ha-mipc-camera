@@ -20,6 +20,13 @@ async def async_setup_entry(
 
 
 class MipcCamera(MipcEntity, Camera):
+    async def async_will_remove_from_hass(self) -> None:
+        """Invalidate the previous stream when switching quality or unloading."""
+        if self.stream is not None:
+            self.stream.dynamic_stream_settings.preload_stream = False
+            await self.stream.stop()
+        await super().async_will_remove_from_hass()
+
     def __init__(self, coordinator: MipcCoordinator, entry: MipcConfigEntry) -> None:
         Camera.__init__(self)
         MipcEntity.__init__(self, coordinator, entry)

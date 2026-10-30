@@ -148,6 +148,27 @@ class MipcHub:
             client.close()
             raise
 
+    def discover_stream_profiles(self) -> list[dict]:
+        """Decode local frames once; advertised names do not prove resolutions."""
+
+        def decode(url):
+            import av
+
+            with (
+                av.logging.Capture(local=True),
+                av.open(
+                    url, mode="r", timeout=(8, 8), options={"rtmp_live": "live"}
+                ) as container,
+            ):
+                frame = next(container.decode(video=0))
+                return frame.width, frame.height
+
+        with self._lock:
+            return [
+                {"token": p.token, "name": p.name, "width": p.width, "height": p.height}
+                for p in self._get_client().probe_stream_profiles(decode)
+            ]
+
     def snapshot(self) -> bytes:
         with self._lock:
             return self._get_client().get_image()

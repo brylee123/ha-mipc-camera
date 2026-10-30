@@ -1,3 +1,3 @@
 """Temporary BSD-3-Clause library bundle; see LICENSE and README."""
 LIBRARY_VERSION = "0.2.0.dev0"
-LIBRARY_COMMIT = "2202f64ef069de047c65127858f4bef47770f083"
+LIBRARY_COMMIT = "ae3bbf90f0ac931e046b6498788ed33d7a745a4e"
