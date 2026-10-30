@@ -248,3 +248,44 @@ async def test_stop_drains_cancelled_or_failed_worker_without_breaking_unload(
     motion._task = task
     await motion.async_stop()
     assert task.done()
+
+
+async def test_native_event_received_automation_fires_only_for_new_motion(hass, hub):
+    from homeassistant.setup import async_setup_component
+
+    _, motion, entity = await motion_setup(hass, hub)
+    received = []
+    hass.bus.async_listen("mipc_test_motion", lambda event: received.append(event))
+    assert await async_setup_component(
+        hass,
+        "automation",
+        {
+            "automation": [
+                {
+                    "alias": "MIPC motion test",
+                    "triggers": [
+                        {
+                            "trigger": "event.received",
+                            "target": {"entity_id": entity},
+                            "options": {"event_type": ["motion"]},
+                        }
+                    ],
+                    "actions": [{"event": "mipc_test_motion"}],
+                }
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+    motion.process([])
+    first = pulse()
+    motion.process([first])
+    await hass.async_block_till_done()
+    assert len(received) == 1
+    motion.process([first])
+    motion.async_set_update_error(MipcTransportError("mmq_pick", "timeout"))
+    motion.process([])
+    await hass.async_block_till_done()
+    assert len(received) == 1
+    motion.process([pulse(2)])
+    await hass.async_block_till_done()
+    assert len(received) == 2
