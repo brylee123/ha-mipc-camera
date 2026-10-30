@@ -7,6 +7,7 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Platform | Supported capabilities |
 | --- | --- |
 | Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
+| Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
 | Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
 | Switch | Image flip, microphone mute, OSD text/date/time, recording schedule enabled |
 | Select | Auto/day/night image mode |
@@ -51,7 +52,7 @@ This beta includes the updated [Python library fork](https://github.com/brylee12
 ## Limits and diagnostics
 
 - No two-way talk audio pipeline or microphone streaming is implemented. Microphone/speaker settings are available where supported.
-- Motion sensitivity is a setting, not a motion-event sensor. Actual motion event reporting has not been established.
+- Motion sensitivity remains a setting. Enable **Local motion events** in integration options to add a native Home Assistant motion event entity on supported cameras.
 - No factory reset, disk format, credential/network changes, or automatic firmware updates are exposed.
 - Storage usage is a ratio; raw camera storage units have not been assumed to be bytes.
 - Unsupported settings stay absent. A failed later read makes that setting unavailable. Reload the integration to discover newly enabled capabilities.
@@ -85,7 +86,7 @@ To nudge a supported camera when a dashboard button is pressed, use the movement
 - **A setting is absent:** the corresponding camera field was missing or unsupported at discovery. Reload after a firmware or capability change. A field that stops being readable becomes unavailable.
 - **A setting action reports a read-back error:** the command may have been sent, but the new state is not confirmed. Check the current state and connectivity before retrying. Writes are never replayed automatically.
 - **No storage percentage:** an empty slot or invalid capacity has no usable percentage. The storage status sensor still reports the device's status.
-- **No live video:** try the default `p0` profile and confirm the local RTMP connection can be reached from Home Assistant. Two-way talk and motion events are not implemented.
+- **No live video:** try the default `p0` profile and confirm the local RTMP connection can be reached from Home Assistant. Two-way talk is not implemented.
 
 Remove the camera entry in **Settings → Devices & services → MIPC Camera → Delete**. For multiple cameras, remove each entry. Remove the integration through HACS, or remove only `custom_components/mipc_camera` for a manual installation, and restart Home Assistant. Removal closes the local client; it does not reset the camera or erase its SD card. Keep a Home Assistant backup before uninstalling custom integrations if you want to retain entity customizations.
 
@@ -107,3 +108,34 @@ Tests use synthetic camera data, block network access and cover initial setup, d
 Built on [Pan Maruda's original mipc-camera-client-python](https://github.com/pan-maruda/mipc-camera-client-python). Thank you to **Pan Maruda** for the original client and protocol work. The expanded fork is maintained by [brylee123](https://github.com/brylee123/mipc-camera-client-python).
 
 This integration and library expansion were developed by brylee123, a programmer by trade, with AI assistance and reviewed/tested against a real camera. This project is an independent community integration and is not affiliated with MIPC or Home Assistant.
+
+## Local motion events
+
+Enable **Local motion events** in the integration options. On firmware returning
+an observed `motion_alert` action, an `event` entity named **Motion** is added.
+Its state is the last event's reception timestamp, with `event_type: motion`,
+`message_id`, and the camera's `camera_timestamp` as attributes. It stays unknown
+before its first event and retains the last event afterward; no motion-clear or
+ten-second occupancy state is invented. Use Home Assistant's **Event received**
+automation trigger for this entity, selecting the `motion` event type.
+
+This feature only subscribes and reads. The camera's motion alarm must be armed
+to generate alerts; the integration never changes arming, IO outputs, recording,
+snapshots or publication filters automatically. Diagnostics include the reported
+arming and event-connection status. An idle/disarmed camera can have a healthy
+event connection without producing alerts. The event entity becomes unavailable
+when the settings connection or its separate queue connection fails.
+
+A dedicated local session keeps long polls from blocking controls or video.
+Transient queue failures reconnect with bounded backoff. Unknown event codes,
+other-camera messages, duplicates and events more than two minutes from the
+Home Assistant clock are ignored. Keep the camera clock correct. Duplicate
+suppression is bounded to 256 events per runtime, and the entity also checks its
+restored last event to avoid firing that event again after a reload. Missed
+notifications are not backfilled from history, and queue reconnects can lose
+alerts; this is not a security alarm delivery guarantee.
+
+Verified on an f300: native local `alert` / `motion_alert` delivery while pan
+movement changed its view. Physical movement, other models and continuous
+long-duration operation still need separate validation. IO, snapshot and recording
+actions were disabled for testing, with original settings restored afterward.

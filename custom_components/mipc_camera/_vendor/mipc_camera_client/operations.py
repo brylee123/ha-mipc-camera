@@ -271,14 +271,25 @@ class OperationsMixin:
                 raise ValueError("Setting must keep the camera's value type")
 
     def set_alert_actions(self, *, enabled: bool, actions: list[dict]) -> None:
-        """Replace actions explicitly; call get_alert_actions() before editing."""
+        """Update each supplied action by token, then set global arming.
+
+        The camera accepts one action object per request, not an array. Updates
+        are sequential, not atomic; an error can leave earlier actions changed.
+        Read get_alert_actions() before editing and verify after writing. An
+        empty list changes only global arming; omitted actions are preserved.
+        """
         if (
             type(enabled) is not bool
             or not isinstance(actions, list)
             or not all(isinstance(a, dict) for a in actions)
         ):
             raise ValueError("Expected boolean enabled and list of actions")
-        self.call("ccm_alert_action_set", enable=enabled, actions=actions)
+        if any(not isinstance(a.get("token"), str) or not a["token"] for a in actions):
+            raise ValueError("Each action requires a nonempty token")
+        with self._lock:
+            for action in actions:
+                self.call("ccm_alert_action_set", actions=action)
+            self.call("ccm_alert_action_set", enable=enabled)
 
     def get_message_filters(self) -> dict[str, Any]:
         return self.call("ccm_msg_filter_get")

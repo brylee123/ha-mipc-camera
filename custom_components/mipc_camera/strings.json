@@ -44,14 +44,15 @@
     "step": {
       "init": {
         "title": "Camera options",
-        "description": "Enable pan/tilt only for cameras with verified motor support. Media connections stay on the configured camera host.",
+        "description": "Enable pan/tilt only for cameras with verified motor support. Media connections stay on the configured camera host. Local motion events require the camera motion alarm to be armed. This option does not change camera alarm actions.",
         "data": {
           "enable_ptz": "Enable pan/tilt motors",
           "enable_stream": "Enable live video",
           "stream_token": "Stream quality token",
           "ptz_step": "Movement per press",
           "pan_speed": "Pan speed",
-          "tilt_speed": "Tilt speed"
+          "tilt_speed": "Tilt speed",
+          "motion_events": "Enable local motion events"
         }
       }
     }
@@ -152,6 +153,18 @@
       },
       "recording_media_ready": {
         "name": "Recording media ready"
+      }
+    },
+    "event": {
+      "motion": {
+        "name": "Motion",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "motion": "Motion"
+            }
+          }
+        }
       }
     }
   },

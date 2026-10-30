@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import MipcAuthenticationError, MipcError, MipcHub
 from .capabilities import Setting, supported, value_at
 from .const import DOMAIN, SCAN_INTERVAL
+from .motion import MipcMotionCoordinator
 
 type MipcConfigEntry = ConfigEntry[MipcCoordinator]
 
@@ -34,6 +35,7 @@ class MipcCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=SCAN_INTERVAL,
         )
         self.hub = hub
+        self.motion: MipcMotionCoordinator | None = None
         self._write_lock = asyncio.Lock()
 
     async def _async_update_data(self) -> dict[str, Any]:
