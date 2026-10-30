@@ -48,15 +48,16 @@ class MipcMotion(MipcEntity, EventEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         event = self.motion.data
-        if self.available and event is not None:
+        if event is not None:
             timestamp = datetime.fromtimestamp(
                 event.timestamp, tz=timezone.utc
             ).isoformat()
             key = (event.message_id, timestamp)
             if key != self._last_received:
                 self._last_received = key
-                self._trigger_event(
-                    "motion",
-                    {"message_id": event.message_id, "camera_timestamp": timestamp},
-                )
+                if self.available:
+                    self._trigger_event(
+                        "motion",
+                        {"message_id": event.message_id, "camera_timestamp": timestamp},
+                    )
         self.async_write_ha_state()

@@ -204,3 +204,20 @@ async def test_setup_starts_listener_and_unload_joins_it(hass, hub):
     await motion._task
     assert await hass.config_entries.async_unload(config.entry_id)
     assert motion._task.done()
+
+
+async def test_events_seen_while_settings_offline_are_not_replayed_on_recovery(
+    hass, hub
+):
+    config, motion, entity = await motion_setup(hass, hub)
+    motion.process([pulse()])
+    before = hass.states.get(entity).state
+    parent = config.runtime_data
+    parent.async_set_update_error(MipcTransportError("ccm_info_get", "timeout"))
+    motion.process([pulse(2)])
+    assert hass.states.get(entity).state == STATE_UNAVAILABLE
+    parent.async_set_updated_data(parent.data)
+    assert hass.states.get(entity).state == before
+    assert hass.states.get(entity).attributes["message_id"] == 1
+    motion.process([pulse(3)])
+    assert hass.states.get(entity).attributes["message_id"] == 3
