@@ -74,9 +74,6 @@
       "recording_mode": {
         "default": "mdi:record-rec"
       },
-      "timezone": {
-        "default": "mdi:map-clock"
-      },
       "video_quality": {
         "default": "mdi:video"
       }
@@ -95,6 +92,9 @@
       },
       "storage_used": {
         "default": "mdi:micro-sd"
+      },
+      "reported_timezone": {
+        "default": "mdi:map-clock"
       }
     },
     "binary_sensor": {

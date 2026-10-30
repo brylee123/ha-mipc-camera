@@ -30,10 +30,16 @@ Only an f300 with firmware `v5.1.10.1811061306` has been hardware-tested. Both m
 
 ## Device settings review
 
-The settings expansion adds camera-advertised timezone choices, OSD formats and
+The settings expansion adds a reported timezone diagnostic, OSD formats and
 weekday, separate motion-action/global-arming switches, explicit SD task modes,
 and sanitized per-interface diagnostics. MAC/IP diagnostics and restart are disabled
 by default. Wi-Fi credentials/SSIDs/AP lists never enter coordinator data. The
 original date/time/recording entity unique IDs are retained. Quality names match
 verified Windows profile handlers and retain measured dimensions; no Auto token is
 invented. Maintenance writes are serialized and never replayed automatically.
+
+Timezone writes were withheld after isolated f300 tests showed accepted setting
+readback alongside incorrect clock changes. The high-level SDK setter and HA
+select were removed before final validation. Raw date/NTP APIs remain advanced;
+no claim is made that they form a safe timezone-only workflow. The camera clock
+was restored and its progression is checked separately from setting readback.

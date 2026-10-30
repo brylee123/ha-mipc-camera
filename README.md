@@ -10,10 +10,10 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
 | Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
 | Switch | Image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
-| Select | Auto/day/night image mode, verified video profiles, OSD formats, timezone, power frequency, SD recording mode |
+| Select | Auto/day/night image mode, verified video profiles, OSD formats, power frequency, SD recording mode |
 | Text | OSD text content |
 | Button | Pan left/right and tilt up/down (opt-in), restart (disabled by default) |
-| Sensor | Firmware and last successful read (disabled by default), storage status/usage, per-interface IP/MAC/type/link (disabled by default) |
+| Sensor | Firmware and last successful read (disabled by default), storage status/usage, reported timezone, per-interface IP/MAC/type/link (disabled by default) |
 | Binary sensor | Connection health and recording media readiness |
 
 Settings entities are created only when the camera reports an appropriately typed field. Entity names, modes, errors and icons use Home Assistant translation resources. Entity and device IDs remain stable when you rename the camera or change its address. Missing fields and unsupported calls do not become invented capabilities. Polling runs every 60 seconds; settings actions wait for a fresh read-back and report an error if the camera does not confirm the requested value. Requests are serialized, and a saved address that points to another camera is rejected during setup. The first hardware test model is an **f300**, firmware `v5.1.10.1811061306`. Both physical motors were verified with small moves and inverse moves.
@@ -47,7 +47,7 @@ Positive X pans right; positive Y tilts up according to the device protocol. The
 
 ## Temporary library bundle
 
-This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `2c75a29400d0d2ce4ba29e406bb97f6102222c42`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
+This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `7b4a1beff5c031b6ca4313ebb38d03fb12c16901`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
 
 ## Limits and diagnostics
 
@@ -165,8 +165,10 @@ Controls appear only for correctly typed fields returned by the camera:
   The existing date/time switches retain their unique IDs. Live snapshots confirmed
   the field mapping. Date format supports YYYY-MM-DD / MM-DD-YYYY; clock format is
   12-hour / 24-hour.
-- **Timezone** uses the camera's advertised IDs, not guessed IANA names. Updating
-  it preserves NTP configuration and avoids writing an old polled timestamp.
+- **Timezone (reported)** is a read-only diagnostic. The f300 can acknowledge a
+  timezone change while shifting its clock incorrectly, so no timezone-writing
+  control is exposed. The SDK reports advertised UTC offsets, matching Windows UI
+  option values; city names/file paths are not assumed to be setter IDs.
 - **Power frequency** follows the MIPC client mapping (0 = 60 Hz, 1 = 50 Hz).
   An OEM UI in the extracted bundle reverses labels; other OEM firmware needs
   hardware validation.

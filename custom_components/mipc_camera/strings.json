@@ -166,9 +166,6 @@
           "continuous": "Continuous",
           "scheduled": "Scheduled"
         }
-      },
-      "timezone": {
-        "name": "Timezone"
       }
     },
     "text": {
@@ -200,6 +197,9 @@
       },
       "network_link_status": {
         "name": "{interface} Link status"
+      },
+      "reported_timezone": {
+        "name": "Timezone (reported)"
       }
     },
     "binary_sensor": {

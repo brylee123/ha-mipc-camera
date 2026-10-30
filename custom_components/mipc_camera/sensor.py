@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .capabilities import value_at
 from .coordinator import MipcConfigEntry, MipcCoordinator
 from .entity import MipcEntity
 
@@ -29,6 +30,10 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     keys = ["firmware", "last_seen"]
+    if isinstance(
+        value_at(entry.runtime_data.data["settings"], ("ntp", "timezone")), str
+    ):
+        keys.append("reported_timezone")
     data = disk(entry.runtime_data.data["settings"])
     if isinstance(data.get("stat"), str):
         keys.append("storage_status")
@@ -93,6 +98,8 @@ class MipcSensor(MipcEntity, SensorEntity):
             return self._hub.firmware
         if self.key == "last_seen":
             return self._hub.last_seen
+        if self.key == "reported_timezone":
+            return value_at(self.coordinator.data["settings"], ("ntp", "timezone"))
         current = disk(self.coordinator.data["settings"])
         if self.key == "storage_status":
             return current.get("stat")

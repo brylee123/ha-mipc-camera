@@ -238,7 +238,7 @@ class OperationsMixin:
         self.update_misc(power_freq=0 if hertz == 60 else 1)
 
     def get_timezones(self) -> tuple[str, ...]:
-        """Return the camera's supported zone IDs, not host IANA guesses."""
+        """Return the UTC offset strings used by the extracted Windows UI."""
         data = self.get_zone(self.get_device_sn())
         address = data.get("address")
         zones = address.get("zones") if isinstance(address, dict) else None
@@ -246,32 +246,11 @@ class OperationsMixin:
             raise MipcProtocolError("ccm_zone_get")
         return tuple(
             dict.fromkeys(
-                z["city"]
+                z["utc"]
                 for z in zones
-                if isinstance(z, dict) and isinstance(z.get("city"), str) and z["city"]
+                if isinstance(z, dict) and isinstance(z.get("utc"), str) and z["utc"]
             )
         )
-
-    def set_timezone(self, zone: str) -> None:
-        """Set a camera-advertised zone, preserving NTP settings.
-
-        For a manually set clock, read fresh UTC before the write. For NTP,
-        omit UTC entirely, as verified on f300 firmware. Never send a cached
-        timestamp from an earlier settings poll.
-        """
-        if not isinstance(zone, str) or not zone:
-            raise ValueError("Expected a timezone ID")
-        with self._lock:
-            if zone not in self.get_timezones():
-                raise ValueError("Timezone was not advertised by the camera")
-            ntp = self.get_ntp()
-            enabled = ntp.get("auto_sync_enable")
-            if type(enabled) not in (int, bool) or enabled not in (0, 1):
-                raise MipcProtocolError("ccm_ntp_get")
-            if enabled:
-                self.call("ccm_date_set", type="NTP", timezone=zone)
-            else:
-                self.set_date(self.get_date(), type="manually", timezone=zone)
 
     def get_recording_mode(self) -> str | None:
         return recording_mode(self.get_recording())
@@ -516,7 +495,12 @@ class OperationsMixin:
         type: str | int | None = None,
         daylight_savings: int | None = None,
     ) -> None:
-        """Send the camera's structured UTC date/time, without host clock changes."""
+        """Send the structured clock document named utc_date on the wire.
+
+        Firmware timezone/NTP behavior is not uniform. This is an explicit raw
+        clock-setting operation, not a verified timezone-only workflow. It never
+        changes the host computer's clock.
+        """
         if not isinstance(utc_date, dict) or not {"date", "time"} <= utc_date.keys():
             raise ValueError("Expected structured date and time")
         self.call(

@@ -141,17 +141,6 @@ def settings_for(data, platform):
                 ),
             )
         )
-    zones = data.get("timezones")
-    if isinstance(zones, list) and zones and all(isinstance(z, str) for z in zones):
-        specs.append(
-            Setting(
-                "timezone",
-                "Timezone",
-                "select",
-                ("ntp", "timezone"),
-                options=tuple(zones),
-            )
-        )
     recording = value_at(data, ("recording", "task", "sch"))
     if (
         isinstance(recording, dict)

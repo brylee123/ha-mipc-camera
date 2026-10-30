@@ -29,7 +29,6 @@ class MipcHub:
         self.errors: dict[str, str] = {}
         self.last_seen: datetime | None = None
         self.video_token = "vs0"
-        self._timezones: list[str] = []
 
     @property
     def serial_number(self) -> str | None:
@@ -119,7 +118,6 @@ class MipcHub:
             "disks": client.get_disks,
             "ntp": client.get_ntp,
             "network": lambda: [asdict(i) for i in client.get_network_interfaces()],
-            "timezones": lambda: self._timezones or list(client.get_timezones()),
         }
         for section, read in reads.items():
             try:
@@ -136,9 +134,6 @@ class MipcHub:
                 errors[section] = type(error).__name__
             except MipcError as error:
                 errors[section] = type(error).__name__
-        zones = settings.get("timezones")
-        if isinstance(zones, list):
-            self._timezones = zones
         controls = {}
         frequency = value_at(settings, ("misc", "power_freq"))
         if type(frequency) is int and frequency in (0, 1):
@@ -239,8 +234,6 @@ class MipcHub:
                     client.set_recording_mode(value)
                 else:
                     raise ValueError("Unsupported setting")
-            elif section == "ntp":
-                client.set_timezone(value)
             elif section == "alert_actions":
                 if field == "enable" and len(tail) == 1:
                     client.set_alarm_armed(bool(value))

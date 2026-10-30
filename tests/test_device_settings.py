@@ -28,7 +28,6 @@ EXTRA = {
     },
     "alert_actions": {"enable": 0, "actions": [{"token": "motion_alert", "enable": 1}]},
     "ntp": {"timezone": "London"},
-    "timezones": ["London", "China"],
     "recording": {"task": {"sch": {"enable": 0, "full_time": 0}}, "sd_ready": 0},
     "controls": {
         "power_frequency": "50_hz",
@@ -61,7 +60,6 @@ async def test_new_settings_use_readback_and_preserve_existing_unique_ids(hass, 
     for key, option in [
         ("osd_date_format", "MM-DD-YYYY"),
         ("osd_time_format", "12_hour"),
-        ("timezone", "China"),
         ("recording_mode", "continuous"),
         ("power_frequency", "60_hz"),
     ]:
@@ -87,12 +85,22 @@ async def test_new_settings_use_readback_and_preserve_existing_unique_ids(hass, 
         er.async_get(hass).async_get(entity_id(hass, config, "osd_date")).unique_id
         == "sn:synthetic-camera_osd_date"
     )
+    assert (
+        hass.states.get(entity_id(hass, config, "reported_timezone")).state == "London"
+    )
+    assert not any(
+        e.domain == "select" and e.unique_id.endswith("_timezone")
+        for e in er.async_get(hass).entities.values()
+    )
     hub.set_value.side_effect = None
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": entity_id(hass, config, "timezone"), "option": "London"},
+            {
+                "entity_id": entity_id(hass, config, "osd_date_format"),
+                "option": "YYYY-MM-DD",
+            },
             blocking=True,
         )
 
@@ -110,7 +118,6 @@ async def test_new_settings_use_readback_and_preserve_existing_unique_ids(hass, 
         ),
         ("osd_time_format", "12_hour", "update_osd", (), {"date": {"enable_12h": 1}}),
         ("power_frequency", "60_hz", "set_power_frequency", (60,), {}),
-        ("timezone", "China", "set_timezone", ("China",), {}),
         ("recording_mode", "continuous", "set_recording_mode", ("continuous",), {}),
         ("motion_detection", False, "set_motion_alarm_enabled", (False,), {}),
         ("alarm_armed", True, "set_alarm_armed", (True,), {}),
@@ -145,7 +152,6 @@ def test_adapter_derives_labels_from_verified_flags_and_sanitizes_network():
     c.get_osd.return_value = EXTRA["osd"]
     c.get_recording.return_value = EXTRA["recording"]
     c.get_ntp.return_value = EXTRA["ntp"]
-    c.get_timezones.return_value = tuple(EXTRA["timezones"])
     c.get_network_interfaces.return_value = (
         NetworkInterface(
             "eth0", "ethernet", True, "ok", "02:00:00:00:00:01", "192.0.2.10"
@@ -156,10 +162,8 @@ def test_adapter_derives_labels_from_verified_flags_and_sanitizes_network():
         hub.connect()
         settings = hub.refresh()["settings"]
         assert settings["controls"] == EXTRA["controls"]
-        assert settings["timezones"] == EXTRA["timezones"]
         assert settings["network"][0]["connection"] == "ethernet"
         hub.refresh()
-        c.get_timezones.assert_called_once()
         hub.reboot()
         c.reboot.assert_called_once_with()
         hub.factory_reset()
