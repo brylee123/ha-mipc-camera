@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to MIPC camera",
+        "description": "Use the camera's local LAN address and device credentials.",
+        "data": {
+          "host": "Camera hostname or IP address",
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_host": "Enter a hostname or IPv4 address, without a URL scheme or port.",
+      "invalid_auth": "The camera rejected these credentials.",
+      "cannot_connect": "Cannot connect to the camera.",
+      "unknown": "Unexpected camera response."
+    },
+    "abort": {
+      "already_configured": "This camera is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MIPC camera controls",
+        "data": {
+          "enable_ptz": "Enable PTZ controls",
+          "enable_stream": "Enable live stream",
+          "stream_token": "RTMP stream token",
+          "allow_remote_stream": "Allow nonlocal stream URL (privacy risk)",
+          "ptz_step": "PTZ movement per button press",
+          "pan_speed": "Pan speed",
+          "tilt_speed": "Tilt speed"
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "pan_left": {
+        "name": "Pan left"
+      },
+      "pan_right": {
+        "name": "Pan right"
+      },
+      "tilt_up": {
+        "name": "Tilt up"
+      },
+      "tilt_down": {
+        "name": "Tilt down"
+      }
+    },
+    "sensor": {
+      "serial_number": {
+        "name": "Serial number"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Connection"
+      }
+    }
+  },
+  "services": {
+    "move": {
+      "name": "Move camera"
+    }
+  }
+}

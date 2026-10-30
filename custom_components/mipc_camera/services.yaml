@@ -1,0 +1,44 @@
+move:
+  name: Move camera
+  description: Send a relative MIPC pan/tilt command. Coordinate ranges are camera-dependent.
+  fields:
+    config_entry_id:
+      name: Configuration entry ID
+      description: Required ID of the target MIPC camera integration instance.
+      required: true
+      selector:
+        text:
+    x:
+      name: Pan
+      description: Relative horizontal movement, -360 to 360.
+      required: true
+      selector:
+        number:
+          min: -360
+          max: 360
+          mode: box
+    y:
+      name: Tilt
+      description: Relative vertical movement, -360 to 360.
+      required: true
+      selector:
+        number:
+          min: -360
+          max: 360
+          mode: box
+    pan_speed:
+      name: Pan speed
+      description: Optional horizontal speed override.
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: box
+    tilt_speed:
+      name: Tilt speed
+      description: Optional vertical speed override.
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: box

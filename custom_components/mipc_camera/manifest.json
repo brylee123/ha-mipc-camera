@@ -1,0 +1,18 @@
+{
+  "domain": "mipc_camera",
+  "name": "MIPC Camera",
+  "version": "0.1.0",
+  "documentation": "https://github.com/brylee123/mipc-camera-client-python",
+  "issue_tracker": "https://github.com/brylee123/mipc-camera-client-python/issues",
+  "codeowners": [
+    "@brylee123"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "stream"
+  ],
+  "requirements": [
+    "mipc-camera-client==0.1.3"
+  ],
+  "iot_class": "local_polling"
+}
