@@ -3,14 +3,15 @@
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .capabilities import supported, value_at
+from .capabilities import Setting, supported, value_at
 from .const import DOMAIN
+from .coordinator import MipcConfigEntry, MipcCoordinator
 
 
-class MipcEntity(CoordinatorEntity):
+class MipcEntity(CoordinatorEntity[MipcCoordinator]):
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry):
+    def __init__(self, coordinator: MipcCoordinator, entry: MipcConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry, self._hub = entry, coordinator.hub
         self._id = entry.unique_id or entry.entry_id
@@ -28,10 +29,13 @@ class MipcEntity(CoordinatorEntity):
 class MipcSettingEntity(MipcEntity):
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, coordinator, entry, spec):
+    def __init__(
+        self, coordinator: MipcCoordinator, entry: MipcConfigEntry, spec: Setting
+    ) -> None:
         super().__init__(coordinator, entry)
         self.spec = spec
-        self._attr_name = spec.name
+        self._attr_translation_key = spec.translation_key or spec.key
+        self._attr_translation_placeholders = spec.translation_placeholders or {}
         self._attr_unique_id = f"{self._id}_{spec.key}"
 
     @property

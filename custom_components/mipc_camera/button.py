@@ -3,16 +3,23 @@
 from dataclasses import dataclass
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .api import MipcError
 from .const import (
     CONF_ENABLE_PTZ,
     CONF_PAN_SPEED,
     CONF_PTZ_STEP,
     CONF_TILT_SPEED,
     DEFAULT_OPTIONS,
+    DOMAIN,
 )
+from .coordinator import MipcConfigEntry
 from .entity import MipcEntity
+
+PARALLEL_UPDATES = 1
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -22,22 +29,16 @@ class MipcButtonDescription(ButtonEntityDescription):
 
 
 DESCRIPTIONS = (
-    MipcButtonDescription(
-        key="pan_left", translation_key="pan_left", icon="mdi:arrow-left", x=-1, y=0
-    ),
-    MipcButtonDescription(
-        key="pan_right", translation_key="pan_right", icon="mdi:arrow-right", x=1, y=0
-    ),
-    MipcButtonDescription(
-        key="tilt_up", translation_key="tilt_up", icon="mdi:arrow-up", x=0, y=1
-    ),
-    MipcButtonDescription(
-        key="tilt_down", translation_key="tilt_down", icon="mdi:arrow-down", x=0, y=-1
-    ),
+    MipcButtonDescription(key="pan_left", translation_key="pan_left", x=-1, y=0),
+    MipcButtonDescription(key="pan_right", translation_key="pan_right", x=1, y=0),
+    MipcButtonDescription(key="tilt_up", translation_key="tilt_up", x=0, y=1),
+    MipcButtonDescription(key="tilt_down", translation_key="tilt_down", x=0, y=-1),
 )
 
 
-async def async_setup_entry(hass, entry, async_add_entities) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     options = {**DEFAULT_OPTIONS, **entry.options}
     if not options[CONF_ENABLE_PTZ]:
         return
@@ -63,7 +64,9 @@ class MipcPtzButton(MipcEntity, ButtonEntity):
                 self._options[CONF_PAN_SPEED],
                 self._options[CONF_TILT_SPEED],
             )
-        except Exception as err:
+        except (MipcError, OSError, ValueError) as err:
             raise HomeAssistantError(
-                f"MIPC PTZ action failed ({type(err).__name__})"
+                translation_domain=DOMAIN,
+                translation_key="movement_failed",
+                translation_placeholders={"error": type(err).__name__},
             ) from err

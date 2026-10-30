@@ -1,11 +1,14 @@
 """Local device setup, credential renewal and connection reconfiguration."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 
 from .api import (
     MipcAuthenticationError,
@@ -15,9 +18,12 @@ from .api import (
     valid_host,
 )
 from .const import DEFAULT_OPTIONS, DOMAIN
+from .coordinator import MipcConfigEntry
 
 
-def connection_schema(defaults=None, password_only=False):
+def connection_schema(
+    defaults: dict[str, Any] | None = None, password_only: bool = False
+) -> vol.Schema:
     defaults = defaults or {}
     schema = {}
     if not password_only:
@@ -27,7 +33,7 @@ def connection_schema(defaults=None, password_only=False):
     return vol.Schema(schema)
 
 
-async def validate(hass, data):
+async def validate(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]:
     hub = MipcHub(data[CONF_HOST], data.get(CONF_USERNAME, ""), data[CONF_PASSWORD])
     try:
         await hass.async_add_executor_job(hub.connect)
@@ -42,7 +48,9 @@ async def validate(hass, data):
 class MipcConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def _check(self, data, errors):
+    async def _check(
+        self, data: dict[str, Any], errors: dict[str, str]
+    ) -> dict[str, str] | None:
         data[CONF_HOST] = data[CONF_HOST].strip().lower()
         if not valid_host(data[CONF_HOST]):
             errors["base"] = "invalid_host"
@@ -57,7 +65,9 @@ class MipcConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown"
         return None
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors = {}
         if user_input is not None:
             info = await self._check(user_input, errors)
@@ -69,10 +79,12 @@ class MipcConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=connection_schema(user_input), errors=errors
         )
 
-    async def async_step_reauth(self, entry_data):
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(self, user_input=None):
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         entry = self._get_reauth_entry()
         errors = {}
         if user_input is not None:
@@ -88,7 +100,9 @@ class MipcConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reconfigure(self, user_input=None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         entry = self._get_reconfigure_entry()
         errors = {}
         if user_input is not None:
@@ -107,12 +121,14 @@ class MipcConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: MipcConfigEntry) -> MipcOptionsFlow:
         return MipcOptionsFlow()
 
 
 class MipcOptionsFlow(config_entries.OptionsFlow):
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)
         options = {**DEFAULT_OPTIONS, **self.config_entry.options}

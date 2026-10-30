@@ -12,6 +12,8 @@ class Setting:
     minimum: int = 0
     maximum: int = 100
     options: tuple[str, ...] = ()
+    translation_key: str | None = None
+    translation_placeholders: dict[str, str] | None = None
 
 
 SETTINGS = (
@@ -92,12 +94,16 @@ def settings_for(data, platform):
                     f"Microphone{suffix} volume",
                     "number",
                     ("microphones", token, "level"),
+                    translation_key="microphone_volume",
+                    translation_placeholders={"suffix": suffix},
                 ),
                 Setting(
                     f"microphone_{token}_mute",
                     f"Microphone{suffix} mute",
                     "switch",
                     ("microphones", token, "silent"),
+                    translation_key="microphone_mute",
+                    translation_placeholders={"suffix": suffix},
                 ),
             )
         )

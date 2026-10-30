@@ -1,9 +1,18 @@
 """Diagnostic sensors without guessed storage units."""
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .coordinator import MipcConfigEntry, MipcCoordinator
 from .entity import MipcEntity
+
+PARALLEL_UPDATES = 0
 
 
 def disk(settings):
@@ -16,7 +25,9 @@ def disk(settings):
     )
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     keys = ["firmware", "last_seen"]
     data = disk(entry.runtime_data.data["settings"])
     if isinstance(data.get("stat"), str):
@@ -34,20 +45,34 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MipcSensor(MipcEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, entry, key):
+    def __init__(
+        self, coordinator: MipcCoordinator, entry: MipcConfigEntry, key: str
+    ) -> None:
         super().__init__(coordinator, entry)
         self.key = key
-        self._attr_name = {
-            "firmware": "Firmware",
-            "last_seen": "Last seen",
-            "storage_status": "Storage status",
-            "storage_used": "Storage used",
-        }[key]
+        self._attr_translation_key = key
+        self._attr_entity_registry_enabled_default = key not in (
+            "firmware",
+            "last_seen",
+        )
         self._attr_unique_id = f"{self._id}_{key}"
         if key == "last_seen":
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         if key == "storage_used":
             self._attr_native_unit_of_measurement = "%"
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def available(self):
+        if not super().available:
+            return False
+        if self.key == "firmware":
+            return isinstance(self._hub.firmware, str)
+        if self.key == "last_seen":
+            return self._hub.last_seen is not None
+        if self.key == "storage_status":
+            return isinstance(disk(self.coordinator.data["settings"]).get("stat"), str)
+        return self.native_value is not None
 
     @property
     def native_value(self):

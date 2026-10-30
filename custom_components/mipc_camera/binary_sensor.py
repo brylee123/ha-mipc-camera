@@ -4,12 +4,19 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .coordinator import MipcConfigEntry, MipcCoordinator
 from .entity import MipcEntity
 
+PARALLEL_UPDATES = 0
 
-async def async_setup_entry(hass, entry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     entities = [MipcOnline(entry.runtime_data, entry)]
     if entry.runtime_data.data["settings"].get("recording", {}).get("sd_ready") in (
         0,
@@ -20,11 +27,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class MipcOnline(MipcEntity, BinarySensorEntity):
-    _attr_name = "Connection"
+    _attr_translation_key = "connection"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
-    def __init__(self, coordinator, entry):
+    def __init__(self, coordinator: MipcCoordinator, entry: MipcConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{self._id}_online"
 
@@ -38,12 +45,17 @@ class MipcOnline(MipcEntity, BinarySensorEntity):
 
 
 class MipcStorageReady(MipcEntity, BinarySensorEntity):
-    _attr_name = "Recording media ready"
+    _attr_translation_key = "recording_media_ready"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, entry):
+    def __init__(self, coordinator: MipcCoordinator, entry: MipcConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{self._id}_storage_ready"
+
+    @property
+    def available(self):
+        value = self.coordinator.data["settings"].get("recording", {}).get("sd_ready")
+        return super().available and type(value) in (int, bool) and value in (0, 1)
 
     @property
     def is_on(self):

@@ -70,12 +70,155 @@
       "tilt_down": {
         "name": "Tilt down"
       }
+    },
+    "number": {
+      "brightness": {
+        "name": "Brightness"
+      },
+      "contrast": {
+        "name": "Contrast"
+      },
+      "color_saturation": {
+        "name": "Saturation"
+      },
+      "sharpness": {
+        "name": "Sharpness"
+      },
+      "speaker_volume": {
+        "name": "Speaker volume"
+      },
+      "motion_sensitivity": {
+        "name": "Motion sensitivity"
+      },
+      "night_motion_sensitivity": {
+        "name": "Night motion sensitivity"
+      },
+      "microphone_volume": {
+        "name": "Microphone{suffix} volume"
+      }
+    },
+    "switch": {
+      "flip": {
+        "name": "Flip image"
+      },
+      "osd_text_enabled": {
+        "name": "OSD text"
+      },
+      "osd_date": {
+        "name": "OSD date"
+      },
+      "osd_time": {
+        "name": "OSD time"
+      },
+      "recording": {
+        "name": "Recording"
+      },
+      "microphone_mute": {
+        "name": "Microphone{suffix} mute"
+      }
+    },
+    "select": {
+      "day_night": {
+        "name": "Day/night mode",
+        "state": {
+          "auto": "Automatic",
+          "day": "Day",
+          "night": "Night"
+        }
+      }
+    },
+    "text": {
+      "osd_text": {
+        "name": "OSD text content"
+      }
+    },
+    "sensor": {
+      "firmware": {
+        "name": "Firmware"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      },
+      "storage_status": {
+        "name": "Storage status"
+      },
+      "storage_used": {
+        "name": "Storage used"
+      }
+    },
+    "binary_sensor": {
+      "connection": {
+        "name": "Connection"
+      },
+      "recording_media_ready": {
+        "name": "Recording media ready"
+      }
     }
   },
   "services": {
     "move": {
       "name": "Move camera",
-      "description": "Send a relative movement to an explicitly enabled pan/tilt camera."
+      "description": "Send a relative movement to an explicitly enabled pan/tilt camera.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Configuration entry ID",
+          "description": "Required ID of the target MIPC camera integration instance."
+        },
+        "x": {
+          "name": "Pan",
+          "description": "Relative horizontal movement, -360 to 360."
+        },
+        "y": {
+          "name": "Tilt",
+          "description": "Relative vertical movement, -360 to 360."
+        },
+        "pan_speed": {
+          "name": "Pan speed",
+          "description": "Optional horizontal speed override."
+        },
+        "tilt_speed": {
+          "name": "Tilt speed",
+          "description": "Optional vertical speed override."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "entry_unavailable": {
+      "message": "This MIPC camera is not loaded. Check its connection or reload the integration."
+    },
+    "ptz_disabled": {
+      "message": "Enable pan/tilt in the integration options after verifying that this camera has motors."
+    },
+    "movement_failed": {
+      "message": "Camera movement failed ({error})."
+    },
+    "invalid_auth": {
+      "message": "The camera rejected its Device/Admin credentials. Reauthenticate the integration."
+    },
+    "identity_changed": {
+      "message": "The saved address now belongs to a different camera. Reconfigure the original camera address."
+    },
+    "update_failed": {
+      "message": "Cannot update the camera ({error})."
+    },
+    "setting_failed": {
+      "message": "Cannot change the camera setting ({error})."
+    },
+    "readback_failed": {
+      "message": "The setting was sent, but the camera state could not be read back. Check its connection before retrying."
+    },
+    "write_not_applied": {
+      "message": "The camera did not report the requested value after the setting was sent."
+    },
+    "snapshot_failed": {
+      "message": "Cannot retrieve a camera snapshot ({error})."
+    },
+    "stream_failed": {
+      "message": "Cannot open the local camera stream ({error})."
+    },
+    "invalid_setting": {
+      "message": "The requested camera setting is outside its supported values."
     }
   }
 }
