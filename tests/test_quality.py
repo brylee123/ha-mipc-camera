@@ -336,3 +336,37 @@ async def test_cancelled_setup_still_closes_its_connection(hass, hub):
         with pytest.raises(asyncio.CancelledError):
             await async_setup_entry(hass, entry())
         assert executor.await_args_list == [call(hub.connect), call(hub.close)]
+
+
+@pytest.mark.parametrize("source", ["reauth", "reconfigure"])
+async def test_existing_entry_retry_does_not_save_invalid_credentials(
+    hass, hub, source
+):
+    config = entry()
+    config.add_to_hass(hass)
+    data = {"username": "", "password": "replacement-device-password"}
+    if source == "reconfigure":
+        data["host"] = "192.0.2.11"
+    hub.connect.side_effect = MipcAuthenticationError("login")
+    with (
+        patch("custom_components.mipc_camera.config_flow.MipcHub", return_value=hub),
+        patch.object(hass.config_entries, "async_reload", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": source,
+                "entry_id": config.entry_id,
+                "unique_id": config.unique_id,
+            },
+            data=dict(config.data) if source == "reauth" else None,
+        )
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
+        assert result["errors"] == {"base": "invalid_auth"}
+        assert config.data["password"] == "never-export-this"
+        hub.connect.side_effect = None
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == source + "_successful"
+    assert config.data["password"] == data["password"]
