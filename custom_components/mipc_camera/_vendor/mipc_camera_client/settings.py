@@ -103,6 +103,10 @@ class SettingsMixin:
 
     def _checked(self, method: str, payload: dict) -> dict:
         response = self.run_rpc(method, payload)
+        return self._checked_response(method, response)
+
+    def _checked_response(self, method: str, response: dict) -> dict:
+        """Validate a reply, including error envelopes on binary endpoints."""
         expected = method.removesuffix("_req") + "_ack"
         if not isinstance(response, dict) or response.get("type") != expected:
             raise MipcProtocolError(method)
@@ -123,6 +127,7 @@ class SettingsMixin:
                 "accounts.lid.invalid",
                 "accounts.sid.invalid",
                 "ccms.session.invalid",
+                "InvalidSession",
             ):
                 raise MipcAuthenticationError(method, str(code))
             raise MipcError(method, str(code))

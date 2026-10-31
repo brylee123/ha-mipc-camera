@@ -29,6 +29,19 @@ class MipcCamera(MipcEntity, Camera):
             Path(__file__).with_name("camera_off.jpg").read_bytes
         )
         self.coordinator.live_view_callback = self.async_set_live_view
+        self.coordinator.media_session_callback = self.async_reset_stream
+
+    async def async_reset_stream(self) -> None:
+        """Discard the URL tied to a session that the camera invalidated."""
+        async with self._media_lock:
+            if not self._create_stream_lock:
+                self._create_stream_lock = asyncio.Lock()
+            async with self._create_stream_lock:
+                if self.stream is not None:
+                    self.stream.dynamic_stream_settings.preload_stream = False
+                    await self.stream.stop()
+                    self.stream = None
+            self.async_write_ha_state()
 
     @property
     def available(self):
@@ -60,6 +73,7 @@ class MipcCamera(MipcEntity, Camera):
             self.stream.dynamic_stream_settings.preload_stream = False
             await self.stream.stop()
         self.coordinator.live_view_callback = None
+        self.coordinator.media_session_callback = None
         await super().async_will_remove_from_hass()
 
     def __init__(self, coordinator: MipcCoordinator, entry: MipcConfigEntry) -> None:

@@ -1,6 +1,7 @@
 """Synchronous, serialized adapter for the temporarily bundled local client."""
 
 import threading
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
@@ -29,6 +30,8 @@ class MipcHub:
         self.errors: dict[str, str] = {}
         self.last_seen: datetime | None = None
         self.video_token = "vs0"
+        self.session_generation = 0
+        self._reconnect_pending = False
 
     @property
     def serial_number(self) -> str | None:
@@ -82,20 +85,28 @@ class MipcHub:
                 except (MipcUnsupportedError, MipcProtocolError):
                     pass
                 self.info["sn"] = serial
+                self.session_generation += 1
+                self._reconnect_pending = False
                 return self.info
             except Exception:
                 client.close()
                 self._client = None
                 raise
 
-    def refresh(self) -> dict[str, Any]:
+    def _read[T](self, operation: Callable[[], T]) -> T:
+        """Renew an expired session once, for explicitly selected reads only."""
         with self._lock:
-            try:
-                return self._refresh_once()
-            except MipcAuthenticationError:
-                # Session renewal retries reads only, never a settings write.
+            if self._client is None and self._reconnect_pending:
                 self.connect()
-                return self._refresh_once()
+            try:
+                return operation()
+            except MipcAuthenticationError:
+                self._reconnect_pending = True
+                self.connect()
+                return operation()
+
+    def refresh(self) -> dict[str, Any]:
+        return self._read(self._refresh_once)
 
     def _refresh_once(self) -> dict[str, Any]:
         client = self._get_client()
@@ -134,6 +145,10 @@ class MipcHub:
                 errors[section] = type(error).__name__
             except MipcError as error:
                 errors[section] = type(error).__name__
+        if not settings:
+            # An unauthenticated identity response alone does not prove that
+            # controls work. Keep the last good state and fail this update.
+            raise MipcProtocolError("authenticated_reads_failed")
         controls = {}
         frequency = value_at(settings, ("misc", "power_freq"))
         if type(frequency) is int and frequency in (0, 1):
@@ -191,29 +206,28 @@ class MipcHub:
 
     def discover_stream_profiles(self) -> list[dict]:
         """Decode local frames once; advertised names do not prove resolutions."""
-        with self._lock:
-            return [
+        return self._read(
+            lambda: [
                 {"token": p.token, "name": p.name, "width": p.width, "height": p.height}
                 for p in self._get_client().probe_stream_profiles(
                     self._decode_stream_dimensions
                 )
             ]
+        )
 
     def check_stream_profile(self, token: str, width: int, height: int) -> None:
         """Require a fresh frame of the requested size before saving a selection."""
         with self._lock:
-            url = self._get_client().get_stream_url(token)
+            url = self.stream_url(token)
             if self._decode_stream_dimensions(url) != (width, height):
                 raise MipcProtocolError("ccm_play")
 
     def snapshot(self) -> bytes:
-        with self._lock:
-            return self._get_client().get_image()
+        return self._read(lambda: self._get_client().get_image())
 
     def stream_url(self, token: str) -> str:
-        with self._lock:
-            # The library rejects media hosts other than the configured camera.
-            return self._get_client().get_stream_url(token)
+        # The library rejects media hosts other than the configured camera.
+        return self._read(lambda: self._get_client().get_stream_url(token))
 
     def move(self, x: int, y: int, speed_x: int, speed_y: int) -> None:
         with self._lock:

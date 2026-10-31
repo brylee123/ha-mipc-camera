@@ -13,7 +13,7 @@ Tests use synthetic camera data, block network access and cover initial setup, d
 
 ## Temporary library bundle
 
-This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `2df542f5fe188b8d0391781e3563b8f455a2aebd`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
+This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `4c0ea7ee9897a1b03cbcbe02741d2fad21e64a3f`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
 
 ## Engineering guidance
 

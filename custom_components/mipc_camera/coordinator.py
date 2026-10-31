@@ -38,13 +38,20 @@ class MipcCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hub = hub
         self.media_options = {**entry.options}
         self.live_view_callback: Callable[[bool], Awaitable[None]] | None = None
+        self.media_session_callback: Callable[[], Awaitable[None]] | None = None
+        self._session_generation = hub.session_generation
         self.motion: MipcMotionCoordinator | None = None
         self._write_lock = asyncio.Lock()
         self._restart_task: asyncio.Task | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            return await self.hass.async_add_executor_job(self.hub.refresh)
+            data = await self.hass.async_add_executor_job(self.hub.refresh)
+            if self._session_generation != self.hub.session_generation:
+                self._session_generation = self.hub.session_generation
+                if self.media_session_callback:
+                    await self.media_session_callback()
+            return data
         except MipcAuthenticationError as error:
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="invalid_auth"
