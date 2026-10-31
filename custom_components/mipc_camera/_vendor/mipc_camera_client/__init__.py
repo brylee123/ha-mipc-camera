@@ -4,6 +4,7 @@ import re
 import threading
 from typing import Literal, Union
 from urllib.parse import urlsplit
+from xml.etree import ElementTree
 
 import json5
 import requests
@@ -246,6 +247,34 @@ class MipcCameraClient(SettingsMixin, OperationsMixin):
             response_type="jpg",
         )
         if not isinstance(image, bytes) or not image.startswith(b"\xff\xd8"):
+            # The f300 returns an XML error envelope from the JPEG endpoint.
+            # Bound parsing and reject declarations that could expand entities.
+            if (
+                isinstance(image, bytes)
+                and len(image) <= 65536
+                and b"\x00" not in image
+                and b"<!DOCTYPE" not in image.upper()
+                and b"<!ENTITY" not in image.upper()
+            ):
+                try:
+                    reply = ElementTree.fromstring(image)
+                except (ElementTree.ParseError, LookupError, ValueError):
+                    pass
+                else:
+                    status = reply.find("data/ccm_pic_get_ack/ret")
+                    if reply.tag == "message" and status is not None:
+                        self._checked_response(
+                            "ccm_pic_get",
+                            {
+                                "type": reply.findtext("type"),
+                                "data": {
+                                    "ret": {
+                                        "code": status.findtext("code"),
+                                        "sub": status.findtext("sub"),
+                                    }
+                                },
+                            },
+                        )
             raise MipcProtocolError("ccm_pic_get")
         return image
 
