@@ -975,6 +975,28 @@
       }
     ]
   },
+  "ccm_audio_ctrl": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "cmd"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5832636,
+        "fields": [
+          "sess",
+          "cmd"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "voice_alarm"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
   "ccm_box_conf_get": {
     "scope": "device",
     "fields": [
@@ -1180,6 +1202,54 @@
         }
       }
     ]
+  },
+  "ccm_crop_zoom_get": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "token"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5810500,
+        "fields": [
+          "sess",
+          "token"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "getCropZoomInfo"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
+  "ccm_crop_zoom_set": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "token",
+      "smooth_crop_zoom",
+      "crop_zoom_conf"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5825408,
+        "fields": [
+          "sess",
+          "token",
+          "smooth_crop_zoom",
+          "crop_zoom_conf"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "setCropZoomInfo"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
   },
   "ccm_curise_get": {
     "scope": "device",
@@ -1999,6 +2069,48 @@
         }
       }
     ]
+  },
+  "ccm_exsw_get": {
+    "scope": "device",
+    "fields": [
+      "sess"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5809560,
+        "fields": [
+          "sess"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "exsw_get"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
+  "ccm_exsw_set": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "enable"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5809700,
+        "fields": [
+          "sess",
+          "enable"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "exsw_set"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
   },
   "ccm_hardware_test": {
     "scope": "device",
@@ -3443,6 +3555,30 @@
       }
     ]
   },
+  "ccm_preset_pos_ctrl": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "cmd",
+      "infos"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5819944,
+        "fields": [
+          "sess",
+          "cmd",
+          "infos"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "preset_pos_ctrl"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
   "ccm_ptz_ctl": {
     "scope": "device",
     "fields": [
@@ -4119,6 +4255,48 @@
       }
     ]
   },
+  "ccm_sleep_get": {
+    "scope": "device",
+    "fields": [
+      "sess"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5811160,
+        "fields": [
+          "sess"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "getSleepInfo"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
+  "ccm_sleep_set": {
+    "scope": "device",
+    "fields": [
+      "sess",
+      "sleep_enable"
+    ],
+    "evidence": [
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5825676,
+        "fields": [
+          "sess",
+          "sleep_enable"
+        ],
+        "apk_sha256": "20c66d333df411629bb2ed7ce572ddca80bb27bef0dff96f65c29d0b4222d8f8",
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "setSleepInfo"
+      }
+    ],
+    "validation": "android_call_site_only",
+    "request_shapes": []
+  },
   "ccm_snapshot": {
     "scope": "device",
     "fields": [
@@ -4386,6 +4564,7 @@
     "fields": [
       "sess",
       "setup",
+      "slient",
       "token"
     ],
     "evidence": [
@@ -4424,6 +4603,17 @@
           "setup",
           "token"
         ]
+      },
+      {
+        "source_sha256": "ac130e6f964b814c443911d072b9bf34fcc6d90350fa19b1730ca7801d0825cb",
+        "offset": 5821220,
+        "fields": [
+          "sess",
+          "setup",
+          "slient"
+        ],
+        "class": "com.mining.cloud.mcld_agent",
+        "method": "pushtalk"
       }
     ],
     "validation": "client_call_site_only",

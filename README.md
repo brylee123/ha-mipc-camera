@@ -7,6 +7,7 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Platform | Supported capabilities |
 | --- | --- |
 | Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
+| Media player | Speaker announcements and TTS, volume and stop; enabled by default where speaker configuration is readable |
 | Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
 | Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
 | Switch | Live view with a local off screen, image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
@@ -103,11 +104,11 @@ Positive X pans right; positive Y tilts up according to the device protocol. The
 
 ## Temporary library bundle
 
-This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `7b4a1beff5c031b6ca4313ebb38d03fb12c16901`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
+This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `2df542f5fe188b8d0391781e3563b8f455a2aebd`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
 
 ## Limits and diagnostics
 
-- No two-way talk audio pipeline or microphone streaming is implemented. Microphone/speaker settings are available where supported.
+- Speaker media/TTS playback is implemented. Live browser microphone capture and full two-way WebRTC talk are not implemented.
 - Motion sensitivity remains a setting. Enable **Local motion events** in integration options to add a native Home Assistant motion event entity on supported cameras.
 - Factory reset is an explicit confirmation-guarded action. Disk format, credential/network changes, and automatic firmware updates are not exposed.
 - Storage usage is a ratio; raw camera storage units have not been assumed to be bytes.
@@ -256,3 +257,43 @@ Settings writes are serialized, never retried automatically, and read back befor
 reporting success. Reboot/reset cannot be verified through the normal settings
 readback while the camera disconnects; a transport timeout may leave their outcome
 unknown. Check the camera before retrying either maintenance action.
+
+## Speaker media player
+
+A **Speaker** `media_player` entity is enabled by default on cameras returning
+readable speaker volume configuration. Existing user-disabled entity preferences
+are respected. Use it with **Play media**, media-source browsing, **Stop**,
+**Volume**, or `tts.speak` from an installed TTS provider.
+
+```yaml
+action: media_player.play_media
+target:
+  entity_id: media_player.YOUR_CAMERA_SPEAKER
+data:
+  media_content_id: media-source://media_source/local/announcement.wav
+  media_content_type: audio/wav
+```
+
+The player accepts short WAV, MP3, FLAC, Ogg and M4A audio, including resolved
+Home Assistant TTS media sources. Home Assistant downloads and decodes the audio,
+then sends AAC over RTMP directly to the camera on a separate authenticated
+session. The camera does not download the media URL or need internet access.
+The selected TTS provider or remote media source may require internet access from
+Home Assistant; local media and a local TTS provider keep that part local too.
+
+There is **no fixed playback duration cap**: decoding and upload run incrementally
+and Stop interrupts the sender. Source downloads retain a **5 MiB** size guard. Queues, playlists,
+radio streams, seek/pause and live browser microphone capture are not supported.
+New playback replaces the previous clip. Stop signals the uploader and waits for
+its bounded network operation, encoder cleanup and a one-second camera release interval; a short buffered tail can
+remain audible. Download redirects and input file/network references inside
+media files are rejected. Playback errors return the player to idle and expose a
+generic `playback_error` attribute; private URLs and TTS text are not logged.
+
+Volume shares the camera's existing speaker-volume setting. Playback does not
+unmute the camera microphone, change alarm settings or turn Live view on. Live
+view controls camera viewing independently of this speaker entity. A readable
+volume field is not proof every firmware accepts talk audio: unsupported devices
+report a playback failure rather than receiving guessed fallback commands. AAC
+16 kHz mono has been acoustically verified on the f300; see the library's
+[Android/audio evidence](https://github.com/brylee123/mipc-camera-client-python/blob/feature/android-audio/docs/ANDROID.md).

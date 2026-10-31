@@ -6,6 +6,7 @@
   ],
   "config_flow": true,
   "dependencies": [
+    "media_source",
     "stream"
   ],
   "documentation": "https://github.com/brylee123/ha-mipc-camera",
@@ -16,5 +17,5 @@
     "json5==0.9.28",
     "pycryptodome==3.24.1"
   ],
-  "version": "0.2.0b6"
+  "version": "0.2.0b7"
 }

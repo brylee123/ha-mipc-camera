@@ -163,6 +163,17 @@ class MipcHub:
             client.close()
             raise
 
+    def send_audio(self, pcm: bytes, stop_event):
+        """Publish on an independent local session so controls remain responsive."""
+        client = self.create_event_client()
+        try:
+            return client.send_audio(pcm, timeout=8, stop_event=stop_event)
+        finally:
+            try:
+                client.logout()
+            finally:
+                client.close()
+
     @staticmethod
     def _decode_stream_dimensions(url: str) -> tuple[int, int]:
         import av
