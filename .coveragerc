@@ -1,0 +1,7 @@
+[run]
+branch = True
+omit = */_vendor/*
+
+[report]
+precision = 2
+fail_under = 95

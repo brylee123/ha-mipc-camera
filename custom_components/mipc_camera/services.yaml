@@ -7,7 +7,8 @@ move:
       description: Required ID of the target MIPC camera integration instance.
       required: true
       selector:
-        text:
+        config_entry:
+          integration: mipc_camera
     x:
       name: Pan
       description: Relative horizontal movement, -360 to 360.

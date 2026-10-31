@@ -59,4 +59,16 @@ def hub():
     }
     instance.snapshot.return_value = b"\xff\xd8synthetic-jpeg\xff\xd9"
     instance.stream_url.return_value = "rtmp://192.0.2.10/live"
+
+    def apply_setting(spec, value):
+        current = instance.settings
+        for key in spec.path[:-1]:
+            current = (
+                next(item for item in current if item["token"] == key)
+                if isinstance(current, list)
+                else current[key]
+            )
+        current[spec.path[-1]] = value
+
+    instance.set_value.side_effect = apply_setting
     return instance

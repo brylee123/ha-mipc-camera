@@ -1,0 +1,93 @@
+{
+  "entity": {
+    "number": {
+      "brightness": {
+        "default": "mdi:brightness-6"
+      },
+      "contrast": {
+        "default": "mdi:contrast"
+      },
+      "color_saturation": {
+        "default": "mdi:palette"
+      },
+      "sharpness": {
+        "default": "mdi:image-filter-center-focus"
+      },
+      "speaker_volume": {
+        "default": "mdi:volume-high"
+      },
+      "motion_sensitivity": {
+        "default": "mdi:motion-sensor"
+      },
+      "night_motion_sensitivity": {
+        "default": "mdi:motion-sensor"
+      },
+      "microphone_volume": {
+        "default": "mdi:microphone"
+      }
+    },
+    "switch": {
+      "flip": {
+        "default": "mdi:flip-vertical"
+      },
+      "osd_text_enabled": {
+        "default": "mdi:format-text"
+      },
+      "osd_date": {
+        "default": "mdi:calendar"
+      },
+      "osd_time": {
+        "default": "mdi:clock-outline"
+      },
+      "recording": {
+        "default": "mdi:record-rec"
+      },
+      "microphone_mute": {
+        "default": "mdi:microphone",
+        "state": {
+          "on": "mdi:microphone-off"
+        }
+      }
+    },
+    "select": {
+      "day_night": {
+        "default": "mdi:theme-light-dark"
+      }
+    },
+    "text": {
+      "osd_text": {
+        "default": "mdi:format-text"
+      }
+    },
+    "sensor": {
+      "firmware": {
+        "default": "mdi:chip"
+      },
+      "storage_status": {
+        "default": "mdi:micro-sd"
+      },
+      "storage_used": {
+        "default": "mdi:micro-sd"
+      }
+    },
+    "binary_sensor": {
+      "recording_media_ready": {
+        "default": "mdi:micro-sd"
+      }
+    },
+    "button": {
+      "pan_left": {
+        "default": "mdi:arrow-left"
+      },
+      "pan_right": {
+        "default": "mdi:arrow-right"
+      },
+      "tilt_up": {
+        "default": "mdi:arrow-up"
+      },
+      "tilt_down": {
+        "default": "mdi:arrow-down"
+      }
+    }
+  }
+}

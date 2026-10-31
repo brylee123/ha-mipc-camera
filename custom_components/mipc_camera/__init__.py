@@ -1,9 +1,15 @@
 """Local MIPC cameras, configured through Home Assistant's UI."""
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryError,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+    ServiceValidationError,
+)
 from homeassistant.helpers import config_validation as cv
 
 from .api import MipcAuthenticationError, MipcError, MipcHub
@@ -15,24 +21,27 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
-from .coordinator import MipcCoordinator
+from .coordinator import MipcConfigEntry, MipcCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config):
-    async def async_move(call):
+    async def async_move(call: ServiceCall) -> None:
         entry = hass.config_entries.async_get_entry(call.data["config_entry_id"])
         if (
             entry is None
             or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
             or getattr(entry, "runtime_data", None) is None
         ):
-            raise HomeAssistantError("Unknown or unloaded camera")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_unavailable"
+            )
         options = {**DEFAULT_OPTIONS, **entry.options}
         if not options[CONF_ENABLE_PTZ]:
-            raise HomeAssistantError(
-                "Enable PTZ only after verifying this camera has motors"
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="ptz_disabled"
             )
         try:
             await hass.async_add_executor_job(
@@ -44,7 +53,9 @@ async def async_setup(hass: HomeAssistant, config):
             )
         except (MipcError, ValueError, OSError) as error:
             raise HomeAssistantError(
-                f"Camera movement failed ({type(error).__name__})"
+                translation_domain=DOMAIN,
+                translation_key="movement_failed",
+                translation_placeholders={"error": type(error).__name__},
             ) from error
 
     hass.services.async_register(
@@ -72,36 +83,44 @@ async def async_setup(hass: HomeAssistant, config):
     return True
 
 
-async def async_setup_entry(hass, entry):
+async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool:
     hub = MipcHub(
         entry.data["host"], entry.data.get("username", ""), entry.data["password"]
     )
     try:
         await hass.async_add_executor_job(hub.connect)
+        if entry.unique_id is not None and entry.unique_id != f"sn:{hub.serial_number}":
+            raise ConfigEntryError(
+                translation_domain=DOMAIN, translation_key="identity_changed"
+            )
         coordinator = MipcCoordinator(hass, entry, hub)
         await coordinator.async_config_entry_first_refresh()
         entry.runtime_data = coordinator
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     except MipcAuthenticationError as error:
         await hass.async_add_executor_job(hub.close)
-        raise ConfigEntryAuthFailed("Camera device credentials rejected") from error
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN, translation_key="invalid_auth"
+        ) from error
     except (MipcError, OSError) as error:
         await hass.async_add_executor_job(hub.close)
         raise ConfigEntryNotReady(
-            f"Camera unavailable ({type(error).__name__})"
+            translation_domain=DOMAIN,
+            translation_key="update_failed",
+            translation_placeholders={"error": type(error).__name__},
         ) from error
-    except Exception:
+    except BaseException:
         await hass.async_add_executor_job(hub.close)
         raise
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
 
-async def async_reload_entry(hass, entry):
+async def async_reload_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass, entry):
+async def async_unload_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool:
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
     await hass.async_add_executor_job(entry.runtime_data.hub.close)

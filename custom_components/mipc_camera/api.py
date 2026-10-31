@@ -2,6 +2,7 @@
 
 import threading
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import urlsplit
 
 from ._vendor.mipc_camera_client import (
@@ -12,41 +13,52 @@ from ._vendor.mipc_camera_client import (
     MipcTransportError,
     MipcUnsupportedError,
 )
-from .capabilities import value_at
+from .capabilities import Setting, value_at
 
 
 class MipcHub:
-    def __init__(self, host, username, password):
+    def __init__(self, host: str, username: str, password: str) -> None:
         self.host, self.username, self._password = host, username, password
         self._lock = threading.RLock()
-        self._client = None
-        self.info, self.settings, self.errors = {}, {}, {}
-        self.last_seen = None
+        self._client: MipcCameraClient | None = None
+        self._serial_number: str | None = None
+        self.info: dict[str, Any] = {}
+        self.settings: dict[str, Any] = {}
+        self.errors: dict[str, str] = {}
+        self.last_seen: datetime | None = None
         self.video_token = "vs0"
 
     @property
-    def serial_number(self):
-        return self.info.get("sn")
+    def serial_number(self) -> str | None:
+        return self._serial_number
 
     @property
-    def model(self):
-        props = {
-            p.get("n"): p.get("v")
-            for p in self.info.get("p", [])
-            if isinstance(p, dict)
-        }
-        return self.info.get("model") or props.get("model") or "IP camera"
+    def model(self) -> str:
+        model = self.info.get("model")
+        if isinstance(model, str) and model:
+            return model
+        properties = self.info.get("p")
+        if isinstance(properties, list):
+            for item in properties:
+                if (
+                    isinstance(item, dict)
+                    and item.get("n") == "model"
+                    and isinstance(item.get("v"), str)
+                ):
+                    return item["v"]
+        return "IP camera"
 
     @property
-    def firmware(self):
-        return self.info.get("img_ver") or self.info.get("ver")
+    def firmware(self) -> str | None:
+        firmware = self.info.get("img_ver") or self.info.get("ver")
+        return firmware if isinstance(firmware, str) else None
 
-    def _get_client(self):
+    def _get_client(self) -> MipcCameraClient:
         if self._client is None:
             raise MipcProtocolError("connection")
         return self._client
 
-    def connect(self):
+    def connect(self) -> dict[str, Any]:
         with self._lock:
             self.close()
             client = MipcCameraClient(self.host, timeout=8)
@@ -59,6 +71,7 @@ class MipcHub:
                     raise MipcProtocolError("identity_changed")
                 client.login(self.username or serial, self._password)
                 self._client = client
+                self._serial_number = serial
                 self.info = basic
                 try:
                     self.info.update(client.get_device_info())
@@ -66,13 +79,14 @@ class MipcHub:
                     raise
                 except (MipcUnsupportedError, MipcProtocolError):
                     pass
+                self.info["sn"] = serial
                 return self.info
             except Exception:
                 client.close()
                 self._client = None
                 raise
 
-    def refresh(self):
+    def refresh(self) -> dict[str, Any]:
         with self._lock:
             try:
                 return self._refresh_once()
@@ -81,7 +95,7 @@ class MipcHub:
                 self.connect()
                 return self._refresh_once()
 
-    def _refresh_once(self):
+    def _refresh_once(self) -> dict[str, Any]:
         client = self._get_client()
         basic = client.get_info()
         if basic.get("sn") != self.serial_number:
@@ -116,24 +130,25 @@ class MipcHub:
             except MipcError as error:
                 errors[section] = type(error).__name__
         self.info.update(settings.get("device", {}))
+        self.info["sn"] = self.serial_number
         self.settings, self.errors = settings, errors
         self.last_seen = datetime.now(timezone.utc)
         return {"settings": settings, "errors": errors}
 
-    def snapshot(self):
+    def snapshot(self) -> bytes:
         with self._lock:
             return self._get_client().get_image()
 
-    def stream_url(self, token):
+    def stream_url(self, token: str) -> str:
         with self._lock:
             # The library rejects media hosts other than the configured camera.
             return self._get_client().get_stream_url(token)
 
-    def move(self, x, y, speed_x, speed_y):
+    def move(self, x: int, y: int, speed_x: int, speed_y: int) -> None:
         with self._lock:
             self._get_client().control_ptz(x, y, speed_x, speed_y)
 
-    def set_value(self, spec, value):
+    def set_value(self, spec: Setting, value: str | int | bool) -> None:
         with self._lock:
             client = self._get_client()
             if value_at(self.settings, spec.path) is None:
@@ -160,7 +175,7 @@ class MipcHub:
             else:
                 raise ValueError("Unsupported setting")
 
-    def close(self):
+    def close(self) -> None:
         with self._lock:
             if self._client is not None:
                 client, self._client = self._client, None
@@ -172,7 +187,7 @@ class MipcHub:
                     client.close()
 
 
-def valid_host(host):
+def valid_host(host: str) -> bool:
     if (
         not isinstance(host, str)
         or not host
