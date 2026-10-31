@@ -1,324 +1,241 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/brylee123/ha-mipc-camera/main/custom_components/mipc_camera/brand/icon%402x.png" alt="MIPC logo" width="112" height="112">
+</p>
+
 # MIPC Camera for Home Assistant
 
-Local control of compatible MIPC cameras, packaged as a separate HACS custom integration. Requires Home Assistant **2026.10.0 or newer**. This is a beta; camera firmware determines which controls appear.
+View compatible MIPC cameras, adjust settings, move their motors, receive motion events and play speaker announcements through a direct connection from Home Assistant to your camera.
 
-## Features
+[![Validation](https://github.com/brylee123/ha-mipc-camera/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/brylee123/ha-mipc-camera/actions/workflows/validate.yml)
+[![HACS custom integration](https://img.shields.io/badge/HACS-Custom-41BDF5)](https://www.hacs.xyz/docs/faq/custom_repositories/)
+[![Home Assistant minimum version](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-18BCF2)](https://www.home-assistant.io/)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 
-| Platform | Supported capabilities |
+**Beta · Local connection · UI setup · No MIPC cloud account required**
+
+An independent community integration for [MIPC](https://play.google.com/store/apps/details?id=com.mining.app.mipca), available as a **HACS custom repository**. Features depend on camera firmware. This is not an official Home Assistant integration.
+
+[Install](#installation) · [Configure](#configuration) · [Features](#supported-features) · [Motion](#motion-and-alarms) · [Security](#privacy-and-network-security) · [Help](#troubleshooting)
+
+## Compatibility and requirements
+
+| Requirement | Details |
 | --- | --- |
-| Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
-| Media player | Speaker announcements and TTS, volume and stop; enabled by default where speaker configuration is readable |
-| Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
-| Number | Brightness, contrast, saturation, sharpness, microphone volume, day/night motion sensitivity |
-| Switch | Live view with a local off screen, image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, Motion alerts and Alarm master |
-| Select | Auto/day/night image mode, verified video profiles, OSD formats, power frequency, SD recording mode |
-| Text | OSD text content |
-| Button | Pan left/right and tilt up/down (opt-in), restart (disabled by default) |
-| Sensor | Firmware and last successful read (disabled by default), storage status/usage, reported timezone, per-interface IP/MAC/type/link (disabled by default) |
-| Binary sensor | Connection health and recording media readiness |
+| Home Assistant | **2026.10.0 or newer** |
+| Camera | A compatible MIPC camera with a reachable local control interface |
+| Credentials | Camera **Device/Admin password**, not your MIPC account password |
+| Network | Direct access from Home Assistant to the camera; reserve its LAN address |
+| Installation | HACS or manual installation; initial dependency downloads need internet access |
 
-Settings entities are created only when the camera reports an appropriately typed field. Entity names, modes, errors and icons use Home Assistant translation resources. Entity and device IDs remain stable when you rename the camera or change its address. Missing fields and unsupported calls do not become invented capabilities. Polling runs every 60 seconds; settings actions wait for a fresh read-back and report an error if the camera does not confirm the requested value. Requests are serialized, and a saved address that points to another camera is rejected during setup. The first hardware test model is an **f300**, firmware `v5.1.10.1811061306`. Both physical motors were verified with small moves and inverse moves.
+**Hardware tested:** f300, firmware `v5.1.10.1811061306`. Snapshots, local video, both motors, supported settings, native motion events and AAC speaker playback were verified. Other models and firmware are not yet confirmed. Unsupported controls stay absent.
 
-## Install
+SD recording settings were checked, but footage was not tested because no usable SD card was present. Factory reset has automated test coverage only. Motion was triggered by camera movement; person movement and long-duration reliability need further validation.
 
-1. Add `https://github.com/brylee123/ha-mipc-camera` as a HACS custom repository, category **Integration**, then download MIPC Camera. Unreleased review branches can be tested with manual installation.
-2. Alternatively, copy **only** `custom_components/mipc_camera` into your Home Assistant configuration directory's `custom_components` folder.
-3. Restart Home Assistant.
-4. Open **Settings > Devices & services > Add integration > MIPC Camera**.
-5. Enter the camera's local hostname/IP (optional port), and its **Device/Admin password**. Your MIPC cloud account password is a different credential. Leave username blank to use the device serial automatically.
-6. Open the integration options to enable PTZ after confirming the camera has motors. Streaming can be disabled or changed between camera profile tokens `p0`-`p3`.
+## Installation
 
-Home Assistant must be able to reach the camera directly. Reserve its LAN address. No MIPC cloud account is used and there is no cloud fallback. Dependency installation initially needs internet access. The camera's own vendor-cloud behavior is outside this integration's control. The camera protocol uses HTTP on the LAN; keep it on a trusted network and do not expose its port to the internet.
+### HACS (recommended)
 
-## Security: keep camera traffic local
+[![Open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=brylee123&repository=ha-mipc-camera&category=integration)
 
-For better privacy, block the camera's internet access at your router or firewall
-while allowing Home Assistant to reach it locally. Using this integration does
-not stop the camera firmware from contacting vendor services on its own. Network
-restrictions reduce that exposure; they do not make the camera firmware trusted.
+1. Open **HACS** in Home Assistant.
+2. Open the menu → **Custom repositories**.
+3. Add `https://github.com/brylee123/ha-mipc-camera` with type **Integration**.
+4. Find **MIPC Camera** in HACS and download it.
+5. Restart Home Assistant, then continue with [Configuration](#configuration).
 
-1. Reserve the camera's LAN address in your router's DHCP settings.
-2. Create an **internet-only block** for the camera: deny outbound traffic to the
-   internet (WAN), across all protocols and ports, for **both IPv4 and IPv6** if
-   enabled. Blocking DNS or a list of vendor domains alone is insufficient.
-3. Allow Home Assistant to reach the camera's local control and media services,
-   including return traffic. If using a separate camera/IoT network, add the
-   required firewall rules between that network and Home Assistant. Guest-network
-   isolation or a router's generic **Block device** option may also block local
-   access; check what the option actually does.
-4. Cover every connected camera interface. Ethernet and Wi-Fi can be active at
-   the same time with different addresses; restrict both or disconnect the unused
-   interface. Do not forward camera ports from the internet, and remove any
-   existing camera port forwards or UPnP mappings.
-5. Verify that the router enforces the WAN block, then restart the camera and
-   check snapshots, live video, PTZ, settings and motion events where supported.
+The button opens this repository in HACS. Use the steps above if the link does not work in your browser.
 
-MIPC cloud viewing, cloud notifications, vendor updates and internet time
-synchronization may stop working. If the camera needs time synchronization, use
-a trusted local time server where the firmware supports it and allow only the
-necessary local access. A correct camera clock matters for motion-event filtering.
-Home Assistant can retain its own internet access for installation and updates;
-the restriction targets the camera.
+### Manual installation
 
-Local control and streaming have been tested, but operation with the camera's WAN
-access blocked has **not yet been hardware-validated**. Verify your model after
-applying the rule. The camera uses HTTP and legacy authentication on the LAN;
-keep access limited to trusted devices, ideally on a separate camera/IoT network.
+1. Download this repository: **Code → Download ZIP**.
+2. Extract it and copy **only** `custom_components/mipc_camera` into your Home Assistant configuration directory:
 
-## Live view switch
+   ```text
+   config/
+   └── custom_components/
+       └── mipc_camera/
+           ├── __init__.py
+           ├── manifest.json
+           └── …
+   ```
 
-The **Live view** switch controls viewing through this integration. Turning it
-off stops the active Home Assistant video session and replaces snapshots and the
-MJPEG feed with a locally generated **Camera Off** screen. The camera entity stays
-available for that placeholder, even if camera polling subsequently fails. No
-camera snapshot or stream negotiation is requested while off. Automatic video
-profile probing is also skipped while off; changing quality only saves the choice
-from previously verified profiles. Turning Live view on resumes camera media.
+3. Restart Home Assistant, then continue below.
 
-The preference is saved across integration reloads and Home Assistant restarts,
-and uses the same setting as **Live view** in integration options. Switching it
-does not reload the integration or interrupt motion events and other controls.
+## Configuration
 
-This is a Home Assistant viewing gate, **not a physical privacy mode or power
-switch**. It does not stop SD recording, mute the camera, block cloud access or
-prevent other apps from viewing it. Previously delivered frames and buffered
-video cannot be recalled. The off screen uses Home Assistant's still-image/MJPEG
-path, rather than a replacement HLS video; an already-open HLS-only player may
-need to be reopened to show it. Motion events and device polling continue.
+[![Add MIPC Camera to Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=mipc_camera)
 
-## Movement action
+1. Open **Settings → Devices & services → Add integration**.
+2. Search for **MIPC Camera**.
+3. Enter the connection details and submit.
 
-The four buttons use the step and speed configured in options. Automations can also call:
+| Field | What to enter |
+| --- | --- |
+| Camera address | Local IP or hostname, optionally with a port, such as `192.168.1.50:80`. No `http://` or path. |
+| Device username | Optional. Leave blank to use the camera's device serial automatically. |
+| Device/Admin PW | The device password configured for the camera. The MIPC cloud account password will not work. |
 
-```yaml
-action: mipc_camera.move
-data:
-  config_entry_id: YOUR_MIPC_CONFIG_ENTRY_ID
-  x: 5
-  y: 0
-  pan_speed: 16
-  tilt_speed: 16
-```
+Repeat setup for each camera. No `configuration.yaml` entry is needed. Use **Reconfigure** in the integration menu after an address change. Invalid credentials prompt reauthentication. A saved address that points to a different camera is rejected.
 
-Positive X pans right; positive Y tilts up according to the device protocol. These are relative device units, not calibrated physical degrees. Start with small values. PTZ is disabled by default and the action rejects calls until enabled.
+### Options
 
-## Temporary library bundle
+Open the integration's **Configure** dialog to change these options.
 
-This beta includes the updated [Python library fork](https://github.com/brylee123/mipc-camera-client-python) inside `_vendor/mipc_camera_client`, version `0.2.0.dev0`, commit `2df542f5fe188b8d0391781e3563b8f455a2aebd`. **It does not install the older PyPI release.** The only adaptation is the resource package lookup in `catalog.py` so the RPC catalogue resolves inside the integration namespace. The original BSD license is retained in `_vendor/LICENSE`. This bundle can be replaced with a pinned published dependency when the updated library is released.
-
-## Limits and diagnostics
-
-- Speaker media/TTS playback is implemented. Live browser microphone capture and full two-way WebRTC talk are not implemented.
-- Motion sensitivity remains a setting. Enable **Local motion events** in integration options to add a native Home Assistant motion event entity on supported cameras.
-- Factory reset is an explicit confirmation-guarded action. Disk format, credential/network changes, and automatic firmware updates are not exposed.
-- Storage usage is a ratio; raw camera storage units have not been assumed to be bytes.
-- Unsupported settings stay absent. A failed later read makes that setting unavailable. Reload the integration to discover newly enabled capabilities.
-- The integration can reconnect an expired session for polling, but does not automatically replay writes.
-- Download diagnostics from the integration menu. Diagnostics whitelist model, firmware, capability names, error classes and options, excluding device IDs, credentials, raw payloads and media URLs.
-
-## Configuration and options
-
-The connection form requires a local camera address and Device/Admin password. Username is optional and defaults to the camera's serial. Use **Reconfigure** from the integration menu after an address change; a camera with a different serial is rejected. If the camera rejects credentials, Home Assistant offers reauthentication. Changing integration options reloads only this integration.
-
-| Option | Default | Meaning |
+| Option | Default | Purpose |
 | --- | --- | --- |
-| Enable pan/tilt | Off | Exposes four motor buttons and allows the movement action after hardware verification |
-| Live view | On | Enables snapshots and streaming; off serves a local Camera Off still/MJPEG screen |
-| Stream quality token | `p0` | Camera profile token; other profiles depend on camera firmware |
-| Movement per press | 5 | Relative units, allowed range 1–30 |
-| Pan speed | 16 | Device speed setting, allowed range 1–100 |
-| Tilt speed | 16 | Device speed setting, allowed range 1–100 |
+| Enable pan/tilt motors | Off | Adds movement buttons and enables the movement action. Enable only for a camera with motors. |
+| Live view | On | Enables Home Assistant viewing; off displays a local **Camera Off** screen. |
+| Stream quality token | `p0` | Camera stream profile; supported profiles depend on firmware. |
+| Movement per press | 5 | Relative movement units, from 1 to 30. |
+| Pan / tilt speed | 16 each | Device speed settings, from 1 to 100. |
+| Enable local motion events | Off | Adds the Motion event entity where supported. Does not arm the camera. |
 
-Image levels, sensitivity, OSD, audio and recording configuration are entities on the camera's device page. Firmware and last-seen diagnostics are disabled by default to avoid redundant history; enable them in **Settings → Devices & services → Entities** if useful. Existing entity preferences are retained.
+Changing options reloads this integration. Entity IDs and customizations are retained. Most camera settings are entities on the device page, rather than options in this dialog.
 
-## Examples
+## Supported features
 
-To nudge a supported camera when a dashboard button is pressed, use the movement action above, or add the pan/tilt button entities to your dashboard. To change image brightness, use the camera's brightness number entity with `number.set_value` and a whole-number value from 0 to 100. Select the entity from your installation; names and entity IDs may have been customized.
+| Feature | Controls and information |
+| --- | --- |
+| Camera | JPEG snapshots and local RTMP video through Home Assistant |
+| Speaker | Media playback, TTS, volume, Stop and media browsing; enabled by default where supported |
+| Motion | Native Motion event entity; separate day and night sensitivity |
+| Alarms | Alarm master and Motion alerts switches |
+| Image | Brightness, contrast, saturation, sharpness, flip, Auto/Day/Night mode and 50/60 Hz power frequency |
+| Video quality | Verified profiles labeled with measured resolution |
+| On-screen display (OSD) | Text, calendar date, clock time, weekday, date format and 12/24-hour format |
+| Microphone | Volume and mute where reported |
+| Recording | SD recording enabled, Off/Continuous mode, Scheduled where existing schedule windows are present |
+| Movement | Pan left/right and tilt up/down buttons; relative movement action |
+| Maintenance | Optional Restart button and confirmation-required factory-reset action |
+| Diagnostics | Connection, recording media readiness, storage status/usage, firmware, last seen, reported timezone, per-interface IP/MAC/type/link |
 
-## Troubleshooting and removal
+Firmware, last-seen and network diagnostic entities are disabled by default, as is Restart. Enable them under **Settings → Devices & services → Entities** when needed.
 
-- **Cannot connect:** check the camera's reserved LAN address, port and network reachability from Home Assistant. No cloud fallback is attempted.
-- **Invalid credentials:** use the Device/Admin password, not the MIPC account password. Leave username blank unless the device requires an explicit username.
-- **Different camera at the saved address:** restore the original camera address and use Reconfigure. Do not replace device identifiers in Home Assistant storage files.
-- **A setting is absent:** the corresponding camera field was missing or unsupported at discovery. Reload after a firmware or capability change. A field that stops being readable becomes unavailable.
-- **A setting action reports a read-back error:** the command may have been sent, but the new state is not confirmed. Check the current state and connectivity before retrying. Writes are never replayed automatically.
-- **No storage percentage:** an empty slot or invalid capacity has no usable percentage. The storage status sensor still reports the device's status.
-- **No live video:** try the default `p0` profile and confirm the local RTMP connection can be reached from Home Assistant. Two-way talk is not implemented.
+Settings are polled every **60 seconds**. Changes are read back before success is reported; failed writes are not automatically replayed. Motion uses a separate local event connection. See [detailed controls and behavior](docs/CONTROLS.md) for capability rules and firmware details.
 
-Remove the camera entry in **Settings → Devices & services → MIPC Camera → Delete**. For multiple cameras, remove each entry. Remove the integration through HACS, or remove only `custom_components/mipc_camera` for a manual installation, and restart Home Assistant. Removal closes the local client; it does not reset the camera or erase its SD card. Keep a Home Assistant backup before uninstalling custom integrations if you want to retain entity customizations.
+### Live view and video quality
 
-See [the engineering review](docs/QUALITY.md) for the applied Home Assistant guidance and the explicit temporary library-packaging exception. The official MIPC logo is used to identify the compatible product; see [asset provenance](custom_components/mipc_camera/brand/README.md).
+**Live view off** stops viewing through this integration and displays a local **Camera Off** still/MJPEG screen. Motion events and other controls continue. The preference survives restarts. An already-open HLS player may need to be reopened to show the placeholder.
 
-## Development
+**This does not turn off the camera**, stop SD recording, mute audio, block the vendor cloud or prevent another app from viewing it.
 
-```sh
-pip install -r requirements_test.txt
-pytest -q --cov=custom_components.mipc_camera --cov-report=term-missing
-ruff check .
-ruff format --check .
-```
+The **Video quality** selector uses measured resolutions. On the tested f300:
 
-Tests use synthetic camera data, block network access and cover initial setup, duplicate entries, failed and cancelled setup, reauthentication, reconfiguration, options reload, entity discovery, verified writes, unavailable/recovery transitions, optional capabilities, PTZ, camera media, unload and diagnostics. CI enforces at least 95% coverage of the integration, including branches; the bundled library is excluded because it has its own test suite. Live acceptance tests are separate and must use local private credentials; never commit credentials or camera images.
+| Profile | Measured resolution |
+| --- | --- |
+| HD1080p | 1920 × 1080 |
+| Standard | 640 × 360 |
+| Smooth | 640 × 360 |
 
-## Credits
+Standard and Smooth remain separate because bitrate or frame rate may differ. No working automatic quality mode was found. Discovery can add several seconds to setup; changing quality briefly reconnects video and motion. It does not change recording or encoder settings.
 
-Built on [Pan Maruda's original mipc-camera-client-python](https://github.com/pan-maruda/mipc-camera-client-python). Thank you to **Pan Maruda** for the original client and protocol work. The expanded fork is maintained by [brylee123](https://github.com/brylee123/mipc-camera-client-python).
+### Speaker announcements
 
-This integration and library expansion were developed by brylee123, a programmer by trade, with AI assistance and reviewed/tested against a real camera. This project is an independent community integration and is not affiliated with MIPC or Home Assistant.
+Use the **Speaker** media player with **Play media**, **Stop**, **Volume**, or an installed [TTS provider](https://www.home-assistant.io/integrations/tts/). WAV, MP3, FLAC, Ogg and M4A audio is decoded and converted to the camera's AAC format automatically.
 
-## Local motion events
+Home Assistant sends audio directly to the camera; the camera does not fetch the media URL. Remote media and cloud TTS may still require internet access from Home Assistant. Use local media and a local TTS provider to keep the entire path local.
 
-Enable **Local motion events** in the integration options. On firmware returning
-an observed `motion_alert` action, an `event` entity named **Motion** is added.
-Its state is the last event's reception timestamp, with `event_type: motion`,
-`message_id`, and the camera's `camera_timestamp` as attributes. It stays unknown
-before its first event and retains the last event afterward; no motion-clear or
-ten-second occupancy state is invented. Use Home Assistant's **Event received**
-automation trigger for this entity, selecting the `motion` event type.
+There is no fixed duration limit, but source downloads are limited to **5 MiB**. New playback replaces the previous clip. Stop interrupts playback, although a short buffered tail may remain. Playlists, radio streams, pause/seek and live browser microphone talk are unsupported.
 
-This feature only subscribes and reads. The camera's motion alarm must be armed
-to generate alerts; the integration never changes arming, IO outputs, recording,
-snapshots or publication filters automatically. Diagnostics include the reported
-arming and event-connection status. An idle/disarmed camera can have a healthy
-event connection without producing alerts. The event entity becomes unavailable
-when the settings connection or its separate queue connection fails.
+**Upgrading from an earlier beta:** the separate speaker-volume number entity is removed. Change its automations to `media_player.volume_set` with **0.0–1.0**, replacing `number.set_value` with **0–100**.
 
-A dedicated local session keeps long polls from blocking controls or video.
-Transient queue failures reconnect with bounded backoff. Unknown event codes,
-other-camera messages, duplicates and events more than two minutes from the
-Home Assistant clock are ignored. Keep the camera clock correct. Duplicate
-suppression is bounded to 256 events per runtime, and the entity also checks its
-restored last event to avoid firing that event again after a reload. Missed
-notifications are not backfilled from history, and queue reconnects can lose
-alerts; this is not a security alarm delivery guarantee.
+### Motion and alarms
 
-Verified on an f300: native local `alert` / `motion_alert` delivery while pan
-movement changed its view. Physical movement, other models and continuous
-long-duration operation still need separate validation. IO, snapshot and recording
-actions were disabled for testing, with original settings restored afterward.
+1. Enable **Local motion events** in the integration options.
+2. Review the camera's configured alarm outputs before arming it; existing actions may take snapshots, record or activate IO.
+3. Turn on **Alarm master** and **Motion alerts** on the device page.
+4. In an automation, choose the Motion entity's **Event received** trigger and the `motion` event type.
 
-## Video quality
+| Alarm master | Motion alerts | Behavior |
+| --- | --- | --- |
+| Off | Either | All configured alarm triggers are disarmed. |
+| On | Off | Motion alerts are disabled; other enabled triggers, such as IO-input alarms, can still run. |
+| On | On | Motion alerts and any other enabled alarm triggers can run. |
 
-The **Video quality** dropdown shows verified playback profiles using the Windows
-client names, with measured dimensions: e.g. **HD1080p (1920 × 1080)**,
-**Standard (640 × 360)**, **Smooth (640 × 360)** on the tested f300. Standard and
-Smooth remain separate because equal dimensions do not prove equal frame rate or
-bitrate. D1/CIF are never translated into assumed sizes. The extracted Auto handler
-only changes its label; no automatic camera mode was found, so none is invented.
+**Alarm master** is the global gate; **Motion alerts** enables only the motion trigger. Neither changes sensitivity or configured outputs. For events-only operation, disable those outputs separately in the camera's alarm settings before arming. Installation does not change them for you.
 
-Discovery decodes a frame from each advertised local profile and can add seconds
-to setup. Failed probes are not shown as working choices. Results are cached;
-firmware/profile changes invalidate them. With fewer than two verified profiles,
-discovery retries on reload. Selecting a quality verifies a fresh frame before
-saving and reloads the integration, closing the previous stream. Video and motion
-briefly reconnect. Existing entity IDs, other options, snapshots and encoder /
-recording configuration are preserved.
+Motion is an **event**, not an occupancy sensor: its state is the last event timestamp and stays unknown until the first event. No ten-second clear timer is added. Keep the camera clock correct; stale, duplicate and unknown events are filtered. Reconnects can lose events, so this is not a guaranteed security-alarm delivery system.
 
-## Device settings and maintenance
+## Actions and examples
 
-Controls appear only for correctly typed fields returned by the camera:
+Use **Developer tools → Actions** to select the target entities or camera. Replace example entity IDs with those from your installation.
 
-- **OSD calendar date**, **OSD clock time**, and **OSD weekday** are independent.
-  The existing date/time switches retain their unique IDs. Live snapshots confirmed
-  the field mapping. Date format supports YYYY-MM-DD / MM-DD-YYYY; clock format is
-  12-hour / 24-hour.
-- **Timezone (reported)** is a read-only diagnostic. The f300 can acknowledge a
-  timezone change while shifting its clock incorrectly, so no timezone-writing
-  control is exposed. The SDK reports advertised UTC offsets, matching Windows UI
-  option values; city names/file paths are not assumed to be setter IDs.
-- **Power frequency** follows the MIPC client mapping (0 = 60 Hz, 1 = 50 Hz).
-  An OEM UI in the extracted bundle reverses labels; other OEM firmware needs
-  hardware validation.
-- **Motion alerts** enables motion-triggered alarm actions. **Alarm master** controls
-  global arming. Both must be enabled to generate motion alerts. Global arming can
-  activate existing IO outputs, snapshots and recording, as configured on the
-  camera. The integration never arms them automatically or rewrites those actions.
-- **SD recording enabled** preserves the existing task mode. **SD recording mode**
-  explicitly selects Off / Continuous; Scheduled appears only with existing time
-  windows. Continuous is all-day recording to camera storage; Scheduled uses the
-  configured time windows. An external MIPC **recording box** is different hardware
-  and is not configured by these controls. No usable SD card was present during
-  validation, so settings readback was verified, but actual footage was not.
-- Per-interface **Local IP address**, **MAC address**, **Connection type**, and
-  **Link status** diagnostic sensors are disabled by default; enable them in the
-  entity list. Ethernet and Wi-Fi are reported separately. Both may be connected;
-  link status does not identify a default route. Wi-Fi passwords, SSIDs and nearby
-  AP lists are excluded from coordinator data. Diagnostics still redact addresses.
-- **Restart** is a configuration button, disabled by default. Enable it in the
-  entity list when needed. It temporarily disconnects the camera. Recovery waits
-  for known controls to return, then reloads the integration to create a fresh
-  media session. Recovery is bounded and never repeats the reboot command.
-- **Factory reset camera** is an explicit action `mipc_camera.factory_reset`,
-  requiring a configuration entry ID and `confirm: true`. It erases settings,
-  credentials and networking, and can require physical access afterward. It is
-  tested with mocks only; the live camera was never factory-reset.
-
-Settings writes are serialized, never retried automatically, and read back before
-reporting success. Reboot/reset cannot be verified through the normal settings
-readback while the camera disconnects; a transport timeout may leave their outcome
-unknown. Check the camera before retrying either maintenance action.
-
-## Speaker media player
-
-A **Speaker** `media_player` entity is enabled by default on cameras returning
-readable speaker volume configuration. Existing user-disabled entity preferences
-are respected. Use it with **Play media**, media-source browsing, **Stop**,
-**Volume**, or `tts.speak` from an installed TTS provider.
+<details>
+<summary>Play a local announcement</summary>
 
 ```yaml
 action: media_player.play_media
 target:
-  entity_id: media_player.YOUR_CAMERA_SPEAKER
+  entity_id: media_player.your_camera_speaker
 data:
   media_content_id: media-source://media_source/local/announcement.wav
   media_content_type: audio/wav
 ```
 
-The player accepts short WAV, MP3, FLAC, Ogg and M4A audio, including resolved
-Home Assistant TTS media sources. Home Assistant downloads and decodes the audio,
-then sends AAC over RTMP directly to the camera on a separate authenticated
-session. The camera does not download the media URL or need internet access.
-The selected TTS provider or remote media source may require internet access from
-Home Assistant; local media and a local TTS provider keep that part local too.
+Place the file in Home Assistant's local media directory first.
 
-There is **no fixed playback duration cap**: decoding and upload run incrementally
-and Stop interrupts the sender. Source downloads retain a **5 MiB** size guard. Queues, playlists,
-radio streams, seek/pause and live browser microphone capture are not supported.
-New playback replaces the previous clip. Stop signals the uploader and waits for
-its bounded network operation, encoder cleanup and a one-second camera release interval; a short buffered tail can
-remain audible. Download redirects and input file/network references inside
-media files are rejected. Playback errors return the player to idle and expose a
-generic `playback_error` attribute; private URLs and TTS text are not logged.
+</details>
 
-Volume uses the camera's existing speaker-volume setting. The redundant speaker
-volume number entity is removed automatically on reload, including if renamed.
-Automations that used it should use `media_player.volume_set` with a level from
-0.0 to 1.0 instead of `number.set_value` with 0 to 100. Playback does not
-unmute the camera microphone, change alarm settings or turn Live view on. Live
-view controls camera viewing independently of this speaker entity. A readable
-volume field is not proof every firmware accepts talk audio: unsupported devices
-report a playback failure rather than receiving guessed fallback commands. AAC
-16 kHz mono has been acoustically verified on the f300; see the library's
-[Android/audio evidence](https://github.com/brylee123/mipc-camera-client-python/blob/feature/android-audio/docs/ANDROID.md).
+<details>
+<summary>Set speaker volume to 25%</summary>
 
-### Alarm controls
+```yaml
+action: media_player.volume_set
+target:
+  entity_id: media_player.your_camera_speaker
+data:
+  volume_level: 0.25
+```
 
-**Alarm master** is the global gate for all configured alarm triggers, including
-motion and IO-input alarms. **Motion alerts** enables only the motion trigger.
+</details>
 
-| Alarm master | Motion alerts | Result |
-| --- | --- | --- |
-| Off | Either | Configured alarm triggers are disarmed. |
-| On | Off | Motion alerts are disabled; other enabled alarm triggers can still run. |
-| On | On | Motion alerts can run, along with any other enabled alarm triggers. |
+For pan/tilt, use the four buttons or **MIPC Camera: Move camera** (`mipc_camera.move`). The action's camera picker supplies the configuration entry ID. Movement uses relative device units, not degrees; start small. See the [movement example](docs/CONTROLS.md#movement-action).
 
-For an events-only setup with IO-input alarms disabled, Alarm master mainly acts
-as an overall on/off switch for motion. **Both switches must be on** for the
-camera to generate motion events. The Motion event entity reports received
-pulses; enabling that entity alone does not arm the camera.
+**Factory reset camera** (`mipc_camera.factory_reset`) requires a camera selection and explicit `confirm: true`. It erases camera settings, credentials and networking, and may require physical access afterward. A timeout does not prove failure; check the camera before retrying. Disk formatting, credential/network changes and firmware updates are not exposed.
 
-Neither switch changes sensitivity or chooses whether an alarm takes snapshots,
-records video or activates an IO output. Those are separate action settings,
-which these switches preserve. An events-only setup requires those motion
-outputs to be disabled separately. **Day motion sensitivity** and **Night motion
-sensitivity** adjust the detector thresholds; they do not arm it.
+## Privacy and network security
+
+The integration uses local HTTP control and local media sessions, with **no MIPC cloud fallback**. This does not stop camera firmware from contacting vendor services independently.
+
+For better privacy, reserve the camera's IP and block its **outbound internet/WAN access** at the router or firewall, for IPv4 and IPv6 where enabled. Keep Home Assistant-to-camera access allowed. Cover both Ethernet and Wi-Fi if connected, and remove camera port forwards or UPnP mappings. Blocking only DNS is insufficient.
+
+The camera uses legacy LAN authentication. Limit access to trusted devices, ideally on a separate camera/IoT network. See the [network isolation guide](docs/SECURITY.md) for steps, time synchronization and verification. Operation with WAN access blocked has not yet been hardware-validated; verify your model after applying restrictions.
+
+## Known limitations
+
+- **Firmware support varies.** Missing or unsupported settings are omitted. Reload to discover capability changes; unreadable settings become unavailable.
+- **Timezone is read-only.** Tested firmware can acknowledge a change while shifting its clock incorrectly.
+- **Recording modes control camera SD storage.** External MIPC recording boxes are not configured here. Storage usage is a ratio; unverified raw units are not presented as bytes.
+- **Speaker playback is not live two-way talk.** Browser microphone capture and full two-way WebRTC talk are not implemented.
+- **This beta bundles the updated Python library.** It does not use the older PyPI release. See [dependency details](docs/DEVELOPMENT.md#temporary-library-bundle).
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Missing from Add integration | Confirm the folder path, restart Home Assistant and refresh your browser. |
+| Cannot connect | Verify the local address, port and Home Assistant-to-camera firewall access. |
+| Invalid credentials | Use the Device/Admin password. Leave username blank unless your camera needs an explicit one. |
+| Address belongs to another camera | Restore the original camera's address and use Reconfigure. Do not edit identifiers in Home Assistant storage. |
+| No live video | Turn Live view on, try `p0`, and check local RTMP reachability. |
+| No motion events | Enable local events, Alarm master and Motion alerts. Check camera time and event-connection diagnostics. A healthy but disarmed camera produces no alerts. |
+| Missing control | The camera may not report a supported field. Reload after a firmware or capability change. |
+| Setting read-back error | The write may have reached the camera. Check its current state and connection before retrying. |
+| Speaker playback fails | Try a small local WAV/MP3 file. Check `playback_error`; readable volume alone does not prove audio-upload support. |
+| No storage percentage | Check for a usable SD card. An empty slot or invalid capacity has no percentage. |
+
+For help, [open an issue](https://github.com/brylee123/ha-mipc-camera/issues/new) with your Home Assistant/integration versions, camera model/firmware, reproduction steps and relevant logs. Download diagnostics from the integration menu. Diagnostics exclude credentials, identifiers, raw payloads and private media URLs. Review logs before sharing; do not attach passwords, camera images or recordings.
+
+## Updating and removing
+
+**Update:** back up Home Assistant, download the update through HACS and restart. For manual installations, replace the integration folder and restart. Review release notes and migration notes first.
+
+**Remove:** delete each camera entry under **Settings → Devices & services**, then remove MIPC Camera through HACS and restart. For manual installations, remove only `custom_components/mipc_camera`. Removal does not reset the camera or erase its SD card.
+
+## Development and credits
+
+[Development guide](docs/DEVELOPMENT.md) · [Engineering review](docs/QUALITY.md) · [Detailed controls](docs/CONTROLS.md) · [Python library](https://github.com/brylee123/mipc-camera-client-python)
+
+Built on [Pan Maruda's original MIPC Python client](https://github.com/pan-maruda/mipc-camera-client-python). Thanks to **Pan Maruda** for the original client and protocol work.
+
+Maintained by **brylee123**, a programmer by trade, with AI assistance and review/testing against a real camera. Source code uses the [BSD 3-Clause license](LICENSE). MIPC names and artwork belong to their respective owners; see [logo provenance](custom_components/mipc_camera/brand/README.md). This project is not affiliated with or endorsed by MIPC or Home Assistant.
