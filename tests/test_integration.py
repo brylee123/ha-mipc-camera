@@ -84,7 +84,7 @@ async def test_entities_setup_and_unload_without_blocking_io(hass, hub):
     states = hass.states.async_all()
     assert any(s.domain == "camera" for s in states)
     assert sum(s.domain == "number" for s in states) == 8
-    assert sum(s.domain == "switch" for s in states) == 6
+    assert sum(s.domain == "switch" for s in states) == 7
     assert not any(s.domain == "button" for s in states)
     assert await hass.config_entries.async_unload(config.entry_id)
     hub.close.assert_called()

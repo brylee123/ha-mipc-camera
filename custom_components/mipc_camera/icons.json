@@ -56,6 +56,12 @@
       },
       "alarm_armed": {
         "default": "mdi:shield-lock"
+      },
+      "live_view": {
+        "default": "mdi:video",
+        "state": {
+          "off": "mdi:video-off"
+        }
       }
     },
     "select": {

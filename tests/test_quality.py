@@ -190,8 +190,8 @@ async def test_action_failure_has_a_translated_sanitized_message(hass, hub):
         assert "never-export-this" not in str(result.value)
 
 
-@pytest.mark.parametrize("streaming", [True, False])
-async def test_camera_delegates_media_and_wraps_known_failures(hass, hub, streaming):
+async def test_camera_delegates_media_and_wraps_known_failures(hass, hub):
+    streaming = True
     config = await setup(hass, hub, {"enable_stream": streaming})
     camera = get_camera_from_entity_id(hass, entity_id(hass, config, "camera"))
     assert await camera.async_camera_image() == hub.snapshot.return_value

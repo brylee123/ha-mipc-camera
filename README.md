@@ -9,7 +9,7 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
 | Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
 | Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
-| Switch | Image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
+| Switch | Live view with a local off screen, image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
 | Select | Auto/day/night image mode, verified video profiles, OSD formats, power frequency, SD recording mode |
 | Text | OSD text content |
 | Button | Pan left/right and tilt up/down (opt-in), restart (disabled by default) |
@@ -64,6 +64,27 @@ access blocked has **not yet been hardware-validated**. Verify your model after
 applying the rule. The camera uses HTTP and legacy authentication on the LAN;
 keep access limited to trusted devices, ideally on a separate camera/IoT network.
 
+## Live view switch
+
+The **Live view** switch controls viewing through this integration. Turning it
+off stops the active Home Assistant video session and replaces snapshots and the
+MJPEG feed with a locally generated **Camera Off** screen. The camera entity stays
+available for that placeholder, even if camera polling subsequently fails. No
+camera snapshot or stream negotiation is requested while off. Automatic video
+profile probing is also skipped while off; changing quality only saves the choice
+from previously verified profiles. Turning Live view on resumes camera media.
+
+The preference is saved across integration reloads and Home Assistant restarts,
+and uses the same setting as **Live view** in integration options. Switching it
+does not reload the integration or interrupt motion events and other controls.
+
+This is a Home Assistant viewing gate, **not a physical privacy mode or power
+switch**. It does not stop SD recording, mute the camera, block cloud access or
+prevent other apps from viewing it. Previously delivered frames and buffered
+video cannot be recalled. The off screen uses Home Assistant's still-image/MJPEG
+path, rather than a replacement HLS video; an already-open HLS-only player may
+need to be reopened to show it. Motion events and device polling continue.
+
 ## Movement action
 
 The four buttons use the step and speed configured in options. Automations can also call:
@@ -101,7 +122,7 @@ The connection form requires a local camera address and Device/Admin password. U
 | Option | Default | Meaning |
 | --- | --- | --- |
 | Enable pan/tilt | Off | Exposes four motor buttons and allows the movement action after hardware verification |
-| Enable live video | On | Offers Home Assistant streaming in addition to snapshots |
+| Live view | On | Enables snapshots and streaming; off serves a local Camera Off still/MJPEG screen |
 | Stream quality token | `p0` | Camera profile token; other profiles depend on camera firmware |
 | Movement per press | 5 | Relative units, allowed range 1–30 |
 | Pan speed | 16 | Device speed setting, allowed range 1–100 |

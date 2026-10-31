@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from ._vendor.mipc_camera_client.profiles import stream_profiles
 from .api import MipcError
 from .capabilities import Setting, settings_for
-from .const import CONF_STREAM_TOKEN, DEFAULT_OPTIONS, DOMAIN
+from .const import CONF_ENABLE_STREAM, CONF_STREAM_TOKEN, DEFAULT_OPTIONS, DOMAIN
 from .coordinator import MipcConfigEntry, MipcCoordinator
 from .entity import MipcEntity, MipcSettingEntity
 
@@ -110,12 +110,13 @@ class MipcVideoQuality(MipcEntity, SelectEntity):
         profile = next(p for p in self._verified if p["token"] == token)
         try:
             # Decode before persisting; credentials/URLs stay private.
-            await self.hass.async_add_executor_job(
-                self._hub.check_stream_profile,
-                token,
-                profile["width"],
-                profile["height"],
-            )
+            if self._entry.options.get(CONF_ENABLE_STREAM, True):
+                await self.hass.async_add_executor_job(
+                    self._hub.check_stream_profile,
+                    token,
+                    profile["width"],
+                    profile["height"],
+                )
         except (MipcError, OSError, ValueError) as error:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

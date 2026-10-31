@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -35,6 +36,8 @@ class MipcCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=SCAN_INTERVAL,
         )
         self.hub = hub
+        self.media_options = {**entry.options}
+        self.live_view_callback: Callable[[bool], Awaitable[None]] | None = None
         self.motion: MipcMotionCoordinator | None = None
         self._write_lock = asyncio.Lock()
         self._restart_task: asyncio.Task | None = None
