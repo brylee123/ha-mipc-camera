@@ -111,7 +111,7 @@ Changing options reloads this integration. Entity IDs and customizations are ret
 
 Firmware, last-seen and network diagnostic entities are disabled by default, as is Restart. Enable them under **Settings → Devices & services → Entities** when needed.
 
-Settings are polled every **60 seconds**. Changes are read back before success is reported; failed writes are not automatically replayed. Motion uses a separate local event connection. See [detailed controls and behavior](docs/CONTROLS.md) for capability rules and firmware details.
+Settings are polled every **60 seconds**. Changes are read back before success is reported; failed writes are not automatically replayed. Expired sessions renew automatically for reads and media requests, with one retry. A renewed session discards cached video URLs on the next successful poll. Motion uses a separate local event connection. See [detailed controls and behavior](docs/CONTROLS.md) for capability rules and firmware details.
 
 ### Live view and video quality
 

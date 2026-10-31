@@ -123,6 +123,7 @@ class SettingsMixin:
                 "accounts.lid.invalid",
                 "accounts.sid.invalid",
                 "ccms.session.invalid",
+                "InvalidSession",
             ):
                 raise MipcAuthenticationError(method, str(code))
             raise MipcError(method, str(code))

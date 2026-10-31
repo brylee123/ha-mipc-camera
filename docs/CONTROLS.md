@@ -198,3 +198,18 @@ data:
 ```
 
 Positive X pans right; positive Y tilts up according to the device protocol. These are relative device units, not calibrated physical degrees. Start with small values. PTZ is disabled by default and the action rejects calls until enabled.
+
+## Session recovery
+
+Expired control sessions, including the f300's `Receiver / InvalidSession`
+response, trigger one fresh login and one retry of reads or media negotiation.
+Snapshot and stream requests can renew the session without waiting for the next
+poll. After renewal, the next successful poll discards any cached Home Assistant
+stream so the next playback request obtains a new local URL. Video may need to
+reconnect in an already-open player. There is no go2rtc dependency.
+
+If every authenticated settings read fails, Connection reports disconnected
+instead of treating the public identity response as a healthy control session.
+Individual unsupported settings still become unavailable without disconnecting
+working controls. Settings writes, motor moves, reboot, factory reset and audio
+uploads are never automatically replayed by this recovery mechanism.
