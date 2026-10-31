@@ -47,7 +47,7 @@
         "description": "Enable pan/tilt only for cameras with verified motor support. Media connections stay on the configured camera host. Local motion events require the camera motion alarm to be armed. This option does not change camera alarm actions.",
         "data": {
           "enable_ptz": "Enable pan/tilt motors",
-          "enable_stream": "Enable live video",
+          "enable_stream": "Live view (off shows Camera Off)",
           "stream_token": "Stream quality token",
           "ptz_step": "Movement per press",
           "pan_speed": "Pan speed",
@@ -128,6 +128,9 @@
       },
       "alarm_armed": {
         "name": "Alarm armed"
+      },
+      "live_view": {
+        "name": "Live view"
       }
     },
     "select": {

@@ -16,6 +16,7 @@ from ._vendor.mipc_camera_client.profiles import stream_profiles
 from .api import MipcAuthenticationError, MipcError, MipcHub
 from .const import (
     CONF_ENABLE_PTZ,
+    CONF_ENABLE_STREAM,
     CONF_MOTION_EVENTS,
     CONF_PAN_SPEED,
     CONF_TILT_SPEED,
@@ -137,7 +138,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool
         await coordinator.async_config_entry_first_refresh()
         advertised = stream_profiles(hub.info)
         signature = [hub.firmware, [[p.token, p.name] for p in advertised]]
-        if len(advertised) > 1 and entry.data.get("profile_signature") != signature:
+        if (
+            entry.options.get(CONF_ENABLE_STREAM, DEFAULT_OPTIONS[CONF_ENABLE_STREAM])
+            and len(advertised) > 1
+            and entry.data.get("profile_signature") != signature
+        ):
             try:
                 profiles = await hass.async_add_executor_job(
                     hub.discover_stream_profiles
@@ -185,6 +190,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> None:
+    coordinator = entry.runtime_data
+    previous = {**DEFAULT_OPTIONS, **coordinator.media_options}
+    current = {**DEFAULT_OPTIONS, **entry.options}
+    changed = {key for key in current if current[key] != previous.get(key)}
+    if changed <= {CONF_ENABLE_STREAM} and coordinator.live_view_callback:
+        await coordinator.live_view_callback(current[CONF_ENABLE_STREAM])
+        coordinator.media_options = dict(entry.options)
+        coordinator.async_update_listeners()
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 
