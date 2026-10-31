@@ -88,11 +88,8 @@
       "sharpness": {
         "name": "Sharpness"
       },
-      "speaker_volume": {
-        "name": "Speaker volume"
-      },
       "motion_sensitivity": {
-        "name": "Motion sensitivity"
+        "name": "Day motion sensitivity"
       },
       "night_motion_sensitivity": {
         "name": "Night motion sensitivity"
@@ -124,10 +121,10 @@
         "name": "OSD weekday"
       },
       "motion_detection": {
-        "name": "Motion alarm action"
+        "name": "Motion alerts"
       },
       "alarm_armed": {
-        "name": "Alarm armed"
+        "name": "Alarm master"
       },
       "live_view": {
         "name": "Live view"
