@@ -28,7 +28,10 @@ SETTINGS = (
     ),
     Setting("speaker_volume", "Speaker volume", "number", ("speaker", "level")),
     Setting(
-        "motion_sensitivity", "Motion sensitivity", "number", ("alerts", "motion_level")
+        "motion_sensitivity",
+        "Day motion sensitivity",
+        "number",
+        ("alerts", "motion_level"),
     ),
     Setting(
         "night_motion_sensitivity",
@@ -56,11 +59,11 @@ SETTINGS = (
     Setting("osd_weekday", "OSD weekday", "switch", ("osd", "week")),
     Setting(
         "motion_detection",
-        "Motion alarm action",
+        "Motion alerts",
         "switch",
         ("alert_actions", "actions", "motion_alert", "enable"),
     ),
-    Setting("alarm_armed", "Alarm armed", "switch", ("alert_actions", "enable")),
+    Setting("alarm_armed", "Alarm master", "switch", ("alert_actions", "enable")),
     Setting(
         "osd_date_format",
         "OSD date format",

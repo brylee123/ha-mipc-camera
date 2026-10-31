@@ -9,8 +9,8 @@ Local control of compatible MIPC cameras, packaged as a separate HACS custom int
 | Camera | JPEG snapshots and local RTMP streaming through Home Assistant |
 | Media player | Speaker announcements and TTS, volume and stop; enabled by default where speaker configuration is readable |
 | Event | Local camera-reported motion pulses (opt-in; requires a returned motion action and local queue support) |
-| Number | Brightness, contrast, saturation, sharpness, speaker/microphone volume, day/night motion sensitivity |
-| Switch | Live view with a local off screen, image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, motion action and global arming |
+| Number | Brightness, contrast, saturation, sharpness, microphone volume, day/night motion sensitivity |
+| Switch | Live view with a local off screen, image flip, microphone mute, OSD text/date/time/weekday, SD recording enabled, Motion alerts and Alarm master |
 | Select | Auto/day/night image mode, verified video profiles, OSD formats, power frequency, SD recording mode |
 | Text | OSD text content |
 | Button | Pan left/right and tilt up/down (opt-in), restart (disabled by default) |
@@ -229,7 +229,7 @@ Controls appear only for correctly typed fields returned by the camera:
 - **Power frequency** follows the MIPC client mapping (0 = 60 Hz, 1 = 50 Hz).
   An OEM UI in the extracted bundle reverses labels; other OEM firmware needs
   hardware validation.
-- **Motion alarm action** toggles the motion action alone. **Alarm armed** controls
+- **Motion alerts** enables motion-triggered alarm actions. **Alarm master** controls
   global arming. Both must be enabled to generate motion alerts. Global arming can
   activate existing IO outputs, snapshots and recording, as configured on the
   camera. The integration never arms them automatically or rewrites those actions.
@@ -290,10 +290,35 @@ remain audible. Download redirects and input file/network references inside
 media files are rejected. Playback errors return the player to idle and expose a
 generic `playback_error` attribute; private URLs and TTS text are not logged.
 
-Volume shares the camera's existing speaker-volume setting. Playback does not
+Volume uses the camera's existing speaker-volume setting. The redundant speaker
+volume number entity is removed automatically on reload, including if renamed.
+Automations that used it should use `media_player.volume_set` with a level from
+0.0 to 1.0 instead of `number.set_value` with 0 to 100. Playback does not
 unmute the camera microphone, change alarm settings or turn Live view on. Live
 view controls camera viewing independently of this speaker entity. A readable
 volume field is not proof every firmware accepts talk audio: unsupported devices
 report a playback failure rather than receiving guessed fallback commands. AAC
 16 kHz mono has been acoustically verified on the f300; see the library's
 [Android/audio evidence](https://github.com/brylee123/mipc-camera-client-python/blob/feature/android-audio/docs/ANDROID.md).
+
+### Alarm controls
+
+**Alarm master** is the global gate for all configured alarm triggers, including
+motion and IO-input alarms. **Motion alerts** enables only the motion trigger.
+
+| Alarm master | Motion alerts | Result |
+| --- | --- | --- |
+| Off | Either | Configured alarm triggers are disarmed. |
+| On | Off | Motion alerts are disabled; other enabled alarm triggers can still run. |
+| On | On | Motion alerts can run, along with any other enabled alarm triggers. |
+
+For an events-only setup with IO-input alarms disabled, Alarm master mainly acts
+as an overall on/off switch for motion. **Both switches must be on** for the
+camera to generate motion events. The Motion event entity reports received
+pulses; enabling that entity alone does not arm the camera.
+
+Neither switch changes sensitivity or chooses whether an alarm takes snapshots,
+records video or activates an IO output. Those are separate action settings,
+which these switches preserve. An events-only setup requires those motion
+outputs to be disabled separately. **Day motion sensitivity** and **Night motion
+sensitivity** adjust the detector thresholds; they do not arm it.

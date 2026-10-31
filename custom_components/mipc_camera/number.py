@@ -1,8 +1,9 @@
-"""Image levels, microphone/speaker volume and motion sensitivity."""
+"""Image levels, microphone volume and day/night motion sensitivity."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .capabilities import Setting, settings_for
@@ -16,9 +17,18 @@ PARALLEL_UPDATES = 1
 async def async_setup_entry(
     hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    # Retire the redundant number by stable identity, including user-renamed
+    # entities. Speaker volume remains available through the media player.
+    registry = er.async_get(hass)
+    unique_id = f"{entry.unique_id or entry.entry_id}_speaker_volume"
+    if entity_id := registry.async_get_entity_id("number", DOMAIN, unique_id):
+        registered = registry.async_get(entity_id)
+        if registered and registered.config_entry_id == entry.entry_id:
+            registry.async_remove(entity_id)
     async_add_entities(
         MipcNumber(entry.runtime_data, entry, spec)
         for spec in settings_for(entry.runtime_data.data["settings"], "number")
+        if spec.key != "speaker_volume"
     )
 
 

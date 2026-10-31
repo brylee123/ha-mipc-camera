@@ -13,9 +13,6 @@
       "sharpness": {
         "default": "mdi:image-filter-center-focus"
       },
-      "speaker_volume": {
-        "default": "mdi:volume-high"
-      },
       "motion_sensitivity": {
         "default": "mdi:motion-sensor"
       },
