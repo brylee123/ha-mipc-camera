@@ -1,6 +1,7 @@
 """Synchronous, serialized adapter for the temporarily bundled local client."""
 
 import threading
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit
@@ -13,6 +14,7 @@ from ._vendor.mipc_camera_client import (
     MipcTransportError,
     MipcUnsupportedError,
 )
+from ._vendor.mipc_camera_client.device_settings import recording_mode
 from .capabilities import Setting, value_at
 
 
@@ -114,6 +116,8 @@ class MipcHub:
             "alert_actions": client.get_alert_actions,
             "recording": client.get_recording,
             "disks": client.get_disks,
+            "ntp": client.get_ntp,
+            "network": lambda: [asdict(i) for i in client.get_network_interfaces()],
         }
         for section, read in reads.items():
             try:
@@ -130,6 +134,17 @@ class MipcHub:
                 errors[section] = type(error).__name__
             except MipcError as error:
                 errors[section] = type(error).__name__
+        controls = {}
+        frequency = value_at(settings, ("misc", "power_freq"))
+        if type(frequency) is int and frequency in (0, 1):
+            controls["power_frequency"] = "60_hz" if frequency == 0 else "50_hz"
+        twelve = value_at(settings, ("osd", "date", "enable_12h"))
+        if type(twelve) in (int, bool) and twelve in (0, 1):
+            controls["time_format"] = "12_hour" if twelve else "24_hour"
+        mode = recording_mode(settings.get("recording", {}))
+        if mode is not None:
+            controls["recording_mode"] = mode
+        settings["controls"] = controls
         self.info.update(settings.get("device", {}))
         self.info["sn"] = self.serial_number
         self.settings, self.errors = settings, errors
@@ -210,6 +225,20 @@ class MipcHub:
                 client.update_microphone(tail[0], **{field: value})
             elif section == "misc":
                 client.set_flip(value)
+            elif section == "controls":
+                if field == "power_frequency":
+                    client.set_power_frequency({"60_hz": 60, "50_hz": 50}[value])
+                elif field == "time_format":
+                    client.update_osd(date={"enable_12h": int(value == "12_hour")})
+                elif field == "recording_mode":
+                    client.set_recording_mode(value)
+                else:
+                    raise ValueError("Unsupported setting")
+            elif section == "alert_actions":
+                if field == "enable" and len(tail) == 1:
+                    client.set_alarm_armed(bool(value))
+                else:
+                    client.set_motion_alarm_enabled(bool(value))
             elif section == "osd":
                 patch = {field: int(value) if spec.platform == "switch" else value}
                 client.update_osd(**({"date": patch} if len(tail) == 2 else patch))
@@ -219,6 +248,15 @@ class MipcHub:
                 client.set_recording_enabled(value)
             else:
                 raise ValueError("Unsupported setting")
+
+    def reboot(self) -> None:
+        with self._lock:
+            self._get_client().reboot()
+
+    def factory_reset(self) -> None:
+        """Caller must require explicit confirmation; no retries."""
+        with self._lock:
+            self._get_client().restore(keep_configuration=False)
 
     def close(self) -> None:
         with self._lock:

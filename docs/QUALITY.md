@@ -13,7 +13,7 @@ Reviewed against the [integration concepts](https://contributors.home-assistant.
 - Settings appear only for observed fields and supported types. Lost optional readings become unavailable. Read-only helpers never send maintenance writes. An empty SD slot never becomes a usage percentage. The percentage sensor uses measurement state class; last-seen uses timestamp device class and connection uses connectivity device class.
 - Entity names and select-mode labels live in translation resources. Icons live in `icons.json`. Exceptions are translated and include only sanitized exception class names. The movement action's configuration-entry selector is a camera picker rather than an unexplained raw-ID input.
 - `has_entity_name`, stable unique IDs, device metadata and configuration/diagnostic categories are provided. Redundant firmware and last-seen sensors are disabled by default. The main camera has no redundant name suffix.
-- Motor support is explicitly opted in; a readable document alone is not proof of a working action. Destructive maintenance and speculative motion-event sensors are not exposed. Hardware and firmware limits are documented.
+- Motor support is explicitly opted in; a readable document alone is not proof of a working action. Factory reset is a dedicated action requiring explicit confirmation; no one-click reset button or speculative occupancy timer is added. Hardware and firmware limits are documented.
 - Diagnostics use an explicit whitelist, excluding credentials, host, device identifiers, raw documents and media URLs. SDK HTTP errors are sanitized. No HTTP control endpoint, access token, telemetry or background monitoring is added.
 - Tests exercise successful and failed setup, cleanup, all configuration-flow paths, options reload, capability routing, immediate read-back, failures, recovery, media and movement actions. CI enforces 95% combined statement/branch coverage for integration code, plus Ruff, hassfest and HACS validation. The SDK has its own independent tests.
 - The official MIPC logo ships locally under `brand/` as 256 and 512 pixel PNGs, with source/trademark attribution. It is not a Home Assistant logo or a generated approximation.
@@ -24,6 +24,22 @@ The user requested a temporary SDK bundle for live testing. Core integrations no
 
 The SDK is synchronous and owns its serialized, bounded HTTP session. It runs in the executor rather than blocking the event loop. A native async SDK and injected web session would be a separate library change; no Platinum claim is made. Typed Home Assistant entry points do not imply that all dynamic camera response documents have a strict schema.
 
-No reliable discovery metadata or actual motion-event delivery has been demonstrated, so automatic discovery and event entities are not claimed. Runtime capability changes are rediscovered on reload. Firmware updates, card formatting, reset and credential/network changes remain outside the integration's exposed actions. Home Assistant's existing error/reauth mechanisms cover current user-actionable failures; there are no speculative custom repair issues.
+No reliable automatic discovery metadata has been demonstrated. Local motion pulses have been verified and are exposed as native event entities, with bounded deduplication and a separate queue session. Runtime capability changes are rediscovered on reload. Firmware updates, card formatting and credential/network changes remain outside the integration's exposed actions. Restart is an optional disabled button; factory reset is an explicit guarded action with mock coverage only. Home Assistant's existing error/reauth mechanisms cover current user-actionable failures; there are no speculative custom repair issues.
 
-Only an f300 with firmware `v5.1.10.1811061306` has been hardware-tested. Both motors, JPEG snapshots, local RTMP consumption, Home Assistant HLS decoding and the exposed settings write paths were verified; broad firmware support, two-way talk, actual motion events and recording to an absent SD card are not promised.
+Only an f300 with firmware `v5.1.10.1811061306` has been hardware-tested. Both motors, JPEG snapshots, local RTMP consumption, Home Assistant HLS decoding and the exposed settings write paths were verified; broad firmware support, two-way talk and recording to an absent SD card are not promised. Motion pulses were verified using camera movement; physical-person detection and long-duration reliability still need separate validation.
+
+## Device settings review
+
+The settings expansion adds a reported timezone diagnostic, OSD formats and
+weekday, separate motion-action/global-arming switches, explicit SD task modes,
+and sanitized per-interface diagnostics. MAC/IP diagnostics and restart are disabled
+by default. Wi-Fi credentials/SSIDs/AP lists never enter coordinator data. The
+original date/time/recording entity unique IDs are retained. Quality names match
+verified Windows profile handlers and retain measured dimensions; no Auto token is
+invented. Maintenance writes are serialized and never replayed automatically.
+
+Timezone writes were withheld after isolated f300 tests showed accepted setting
+readback alongside incorrect clock changes. The high-level SDK setter and HA
+select were removed before final validation. Raw date/NTP APIs remain advanced;
+no claim is made that they form a safe timezone-only workflow. The camera clock
+was restored and its progression is checked separately from setting readback.

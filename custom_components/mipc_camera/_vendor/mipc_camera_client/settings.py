@@ -341,6 +341,11 @@ class SettingsMixin:
             self._authenticated("ccm_osd_set", osd=osd)
 
     def set_recording_enabled(self, enabled: bool) -> None:
+        """Enable the existing SD task; does not select continuous recording.
+
+        Preserves its existing full_time/schedule mode. Prefer set_recording_mode
+        when you want an explicit off/continuous/scheduled choice.
+        """
         if type(enabled) is not bool:
             raise ValueError("Expected a boolean")
         with self._lock:

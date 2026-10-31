@@ -71,14 +71,16 @@ class MipcVideoQuality(MipcEntity, SelectEntity):
             )
         ]
 
+    @staticmethod
+    def _label(profile):
+        token = profile["token"]
+        names = {"p1": "Standard", "p2": "Smooth"}
+        name = names.get(token, profile.get("name") or token)
+        return f"{name} ({profile['width']} × {profile['height']})"
+
     @property
     def _profiles(self):
-        choices = {}
-        for profile in self._verified:
-            choices.setdefault(
-                f"{profile['width']} × {profile['height']}", profile["token"]
-            )
-        return choices
+        return {self._label(p): p["token"] for p in self._verified}
 
     @property
     def options(self):
@@ -90,12 +92,7 @@ class MipcVideoQuality(MipcEntity, SelectEntity):
             CONF_STREAM_TOKEN, DEFAULT_OPTIONS[CONF_STREAM_TOKEN]
         )
         return next(
-            (
-                f"{p['width']} × {p['height']}"
-                for p in self._verified
-                if p["token"] == token
-            ),
-            None,
+            (self._label(p) for p in self._verified if p["token"] == token), None
         )
 
     @property

@@ -43,3 +43,22 @@ move:
           min: 1
           max: 100
           mode: box
+
+factory_reset:
+  name: Factory reset camera
+  description: Erase camera settings, credentials and networking. Physical access may be needed to reconnect. This cannot be undone.
+  fields:
+    config_entry_id:
+      name: Configuration entry ID
+      description: The MIPC camera to erase.
+      required: true
+      selector:
+        config_entry:
+          integration: mipc_camera
+    confirm:
+      name: Confirm factory reset
+      description: Must be explicitly true to erase the camera.
+      required: true
+      default: false
+      selector:
+        boolean:

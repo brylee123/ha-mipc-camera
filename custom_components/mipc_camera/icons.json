@@ -47,11 +47,35 @@
         "state": {
           "on": "mdi:microphone-off"
         }
+      },
+      "osd_weekday": {
+        "default": "mdi:calendar-week"
+      },
+      "motion_detection": {
+        "default": "mdi:motion-sensor"
+      },
+      "alarm_armed": {
+        "default": "mdi:shield-lock"
       }
     },
     "select": {
       "day_night": {
         "default": "mdi:theme-light-dark"
+      },
+      "power_frequency": {
+        "default": "mdi:sine-wave"
+      },
+      "osd_date_format": {
+        "default": "mdi:calendar"
+      },
+      "osd_time_format": {
+        "default": "mdi:clock-outline"
+      },
+      "recording_mode": {
+        "default": "mdi:record-rec"
+      },
+      "video_quality": {
+        "default": "mdi:video"
       }
     },
     "text": {
@@ -68,6 +92,9 @@
       },
       "storage_used": {
         "default": "mdi:micro-sd"
+      },
+      "reported_timezone": {
+        "default": "mdi:map-clock"
       }
     },
     "binary_sensor": {

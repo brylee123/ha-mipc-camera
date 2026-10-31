@@ -46,8 +46,12 @@ async def test_quality_selection_negotiates_and_reloads_stream_with_same_identit
     )
     entity = quality_id(hass, config)
     state = hass.states.get(entity)
-    assert state.state == "1920 × 1080"
-    assert state.attributes["options"] == ["1920 × 1080", "640 × 360"]
+    assert state.state == "HD1080p (1920 × 1080)"
+    assert state.attributes["options"] == [
+        "HD1080p (1920 × 1080)",
+        "Standard (640 × 360)",
+        "Smooth (640 × 360)",
+    ]
     camera_id = next(
         e.entity_id
         for e in er.async_get(hass).entities.values()
@@ -61,14 +65,14 @@ async def test_quality_selection_negotiates_and_reloads_stream_with_same_identit
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": entity, "option": "640 × 360"},
+            {"entity_id": entity, "option": "Standard (640 × 360)"},
             blocking=True,
         )
         await hass.async_block_till_done()
     assert (
         config.options["stream_token"] == "p1" and config.options["enable_ptz"] is True
     )
-    assert hass.states.get(entity).state == "640 × 360"
+    assert hass.states.get(entity).state == "Standard (640 × 360)"
     replacement = get_camera_from_entity_id(hass, camera_id)
     hub.check_stream_profile.assert_called_once_with("p1", 640, 360)
     assert replacement is not original
@@ -81,7 +85,7 @@ async def test_quality_selection_negotiates_and_reloads_stream_with_same_identit
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity, "option": "640 × 360"},
+        {"entity_id": entity, "option": "Standard (640 × 360)"},
         blocking=True,
     )
     hub.stream_url.assert_not_called()
@@ -96,11 +100,11 @@ async def test_quality_failure_preserves_previous_profile_and_options(hass, hub)
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": entity, "option": "640 × 360"},
+            {"entity_id": entity, "option": "Standard (640 × 360)"},
             blocking=True,
         )
     assert "stream_token" not in config.options
-    assert hass.states.get(entity).state == "1920 × 1080"
+    assert hass.states.get(entity).state == "HD1080p (1920 × 1080)"
 
 
 async def test_quality_capability_removed_is_unavailable_and_rejects_old_option(
@@ -116,7 +120,7 @@ async def test_quality_capability_removed_is_unavailable_and_rejects_old_option(
 
     selection = MipcVideoQuality(config.runtime_data, config)
     with pytest.raises(HomeAssistantError):
-        await selection.async_select_option("640 × 360")
+        await selection.async_select_option("Standard (640 × 360)")
     assert "stream_token" not in config.options
 
 

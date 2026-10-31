@@ -12,6 +12,7 @@ from copy import deepcopy
 from typing import Any
 from urllib.parse import urlsplit
 
+from .device_settings import NetworkInterface, network_interfaces, recording_mode
 from .settings import MipcProtocolError
 
 
@@ -222,6 +223,92 @@ class OperationsMixin:
                 raise MipcProtocolError("ccm_img_get")
             self.call("ccm_img_set", token=token, conf=merge_document(conf, changes))
 
+    def get_network_interfaces(self) -> tuple[NetworkInterface, ...]:
+        """Read interface identity/link/IP without exposing Wi-Fi credentials."""
+        return network_interfaces(self.get_network())
+
+    def set_power_frequency(self, hertz: int) -> None:
+        """MIPC client mapping: enum 0 = 60 Hz, 1 = 50 Hz.
+
+        Some OEM client UIs reverse their labels. This helper follows the MIPC
+        UI, not the Vimtag OEM UI. Raw update_misc remains available.
+        """
+        if type(hertz) is not int or hertz not in (50, 60):
+            raise ValueError("Expected 50 or 60 hertz")
+        self.update_misc(power_freq=0 if hertz == 60 else 1)
+
+    def get_timezones(self) -> tuple[str, ...]:
+        """Return the UTC offset strings used by the extracted Windows UI."""
+        data = self.get_zone(self.get_device_sn())
+        address = data.get("address")
+        zones = address.get("zones") if isinstance(address, dict) else None
+        if not isinstance(zones, list):
+            raise MipcProtocolError("ccm_zone_get")
+        return tuple(
+            dict.fromkeys(
+                z["utc"]
+                for z in zones
+                if isinstance(z, dict) and isinstance(z.get("utc"), str) and z["utc"]
+            )
+        )
+
+    def get_recording_mode(self) -> str | None:
+        return recording_mode(self.get_recording())
+
+    def set_recording_mode(self, mode: str) -> None:
+        """Select off/continuous/existing weekly schedule for local SD storage.
+
+        Scheduled mode needs a pre-existing nonempty schedule; this method never
+        creates guessed time windows. It preserves retention and unknown fields.
+        SD media is required to actually record, even if a setting is accepted.
+        """
+        if mode not in ("off", "continuous", "scheduled"):
+            raise ValueError("Expected off, continuous or scheduled")
+        with self._lock:
+            data = self._document("ccm_record_task_get", "task")
+            schedule = data.get("sch")
+            if (
+                not isinstance(schedule, dict)
+                or not {"enable", "full_time"} <= schedule.keys()
+            ):
+                raise MipcProtocolError("ccm_record_task_get")
+            if mode == "scheduled" and not schedule.get("times"):
+                raise ValueError("Configure a recording schedule first")
+            patch = {"enable": int(mode != "off")}
+            if mode != "off":
+                patch["full_time"] = int(mode == "continuous")
+            self._require_existing(data, {"sch": patch})
+            self.call("ccm_record_task_set", task=merge_document(data, {"sch": patch}))
+
+    def set_motion_alarm_enabled(self, enabled: bool) -> None:
+        """Toggle only the motion action. Global arming and other outputs stay as-is.
+
+        Motion notifications require both global arming and this action enabled.
+        Never infer permission to arm other configured IO/record/snapshot actions.
+        """
+        if type(enabled) is not bool:
+            raise ValueError("Expected boolean enabled")
+        with self._lock:
+            data = self.get_alert_actions()
+            actions = data.get("actions")
+            if not isinstance(actions, list):
+                raise MipcProtocolError("ccm_alert_action_get")
+            matches = [
+                a
+                for a in actions
+                if isinstance(a, dict) and a.get("token") == "motion_alert"
+            ]
+            if len(matches) != 1 or type(matches[0].get("enable")) not in (int, bool):
+                raise MipcProtocolError("ccm_alert_action_get")
+            self.call(
+                "ccm_alert_action_set",
+                actions=merge_document(matches[0], {"enable": int(enabled)}),
+            )
+
+    def set_alarm_armed(self, enabled: bool) -> None:
+        """Explicit global arming: may activate existing IO, snapshot and recording actions."""
+        self.set_alert_actions(enabled=enabled, actions=[])
+
     def update_misc(self, **changes: Any) -> None:
         """Update observed misc fields, e.g. flip and power_freq.
 
@@ -408,7 +495,12 @@ class OperationsMixin:
         type: str | int | None = None,
         daylight_savings: int | None = None,
     ) -> None:
-        """Send the camera's structured UTC date/time, without host clock changes."""
+        """Send the structured clock document named utc_date on the wire.
+
+        Firmware timezone/NTP behavior is not uniform. This is an explicit raw
+        clock-setting operation, not a verified timezone-only workflow. It never
+        changes the host computer's clock.
+        """
         if not isinstance(utc_date, dict) or not {"date", "time"} <= utc_date.keys():
             raise ValueError("Expected structured date and time")
         self.call(

@@ -83,6 +83,43 @@ async def async_setup(hass: HomeAssistant, config):
             }
         ),
     )
+
+    async def async_factory_reset(call: ServiceCall) -> None:
+        entry = hass.config_entries.async_get_entry(call.data["config_entry_id"])
+        if not call.data["confirm"]:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="reset_confirmation_required"
+            )
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
+            or getattr(entry, "runtime_data", None) is None
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_unavailable"
+            )
+        async with entry.runtime_data._write_lock:
+            try:
+                await hass.async_add_executor_job(entry.runtime_data.hub.factory_reset)
+            except (MipcError, ValueError, OSError) as error:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="setting_failed",
+                    translation_placeholders={"error": type(error).__name__},
+                ) from error
+
+    hass.services.async_register(
+        DOMAIN,
+        "factory_reset",
+        async_factory_reset,
+        schema=vol.Schema(
+            {
+                vol.Required("config_entry_id"): cv.string,
+                vol.Required("confirm"): vol.Boolean(),
+            }
+        ),
+    )
     return True
 
 
@@ -114,13 +151,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool
                 data={
                     **entry.data,
                     "profile_signature": signature
-                    if len(
-                        {
-                            (p.get("width"), p.get("height"))
-                            for p in profiles
-                            if p.get("width") and p.get("height")
-                        }
-                    )
+                    if len([p for p in profiles if p.get("width") and p.get("height")])
                     > 1
                     else None,
                     "stream_profiles": profiles,

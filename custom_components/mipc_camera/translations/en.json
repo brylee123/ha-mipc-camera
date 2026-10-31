@@ -70,6 +70,9 @@
       },
       "tilt_down": {
         "name": "Tilt down"
+      },
+      "restart": {
+        "name": "Restart"
       }
     },
     "number": {
@@ -106,16 +109,25 @@
         "name": "OSD text"
       },
       "osd_date": {
-        "name": "OSD date"
+        "name": "OSD calendar date"
       },
       "osd_time": {
-        "name": "OSD time"
+        "name": "OSD clock time"
       },
       "recording": {
-        "name": "Recording"
+        "name": "SD recording enabled"
       },
       "microphone_mute": {
         "name": "Microphone{suffix} mute"
+      },
+      "osd_weekday": {
+        "name": "OSD weekday"
+      },
+      "motion_detection": {
+        "name": "Motion alarm action"
+      },
+      "alarm_armed": {
+        "name": "Alarm armed"
       }
     },
     "select": {
@@ -129,6 +141,31 @@
       },
       "video_quality": {
         "name": "Video quality"
+      },
+      "osd_date_format": {
+        "name": "OSD date format"
+      },
+      "osd_time_format": {
+        "name": "OSD time format",
+        "state": {
+          "24_hour": "24-hour",
+          "12_hour": "12-hour"
+        }
+      },
+      "power_frequency": {
+        "name": "Power frequency",
+        "state": {
+          "60_hz": "60 Hz",
+          "50_hz": "50 Hz"
+        }
+      },
+      "recording_mode": {
+        "name": "SD recording mode",
+        "state": {
+          "off": "Off",
+          "continuous": "Continuous",
+          "scheduled": "Scheduled"
+        }
       }
     },
     "text": {
@@ -148,6 +185,21 @@
       },
       "storage_used": {
         "name": "Storage used"
+      },
+      "network_mac_address": {
+        "name": "{interface} MAC address"
+      },
+      "network_ip_address": {
+        "name": "{interface} Local IP address"
+      },
+      "network_connection": {
+        "name": "{interface} Connection type"
+      },
+      "network_link_status": {
+        "name": "{interface} Link status"
+      },
+      "reported_timezone": {
+        "name": "Timezone (reported)"
       }
     },
     "binary_sensor": {
@@ -197,6 +249,20 @@
           "description": "Optional vertical speed override."
         }
       }
+    },
+    "factory_reset": {
+      "name": "Factory reset camera",
+      "description": "Erase camera settings, credentials and networking. Physical access may be needed to reconnect. This action cannot be undone.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Configuration entry ID",
+          "description": "The MIPC camera to erase."
+        },
+        "confirm": {
+          "name": "Confirm factory reset",
+          "description": "Must be explicitly true to erase the camera."
+        }
+      }
     }
   },
   "exceptions": {
@@ -235,6 +301,12 @@
     },
     "invalid_setting": {
       "message": "The requested camera setting is outside its supported values."
+    },
+    "reset_confirmation_required": {
+      "message": "Factory reset erases camera settings, credentials and networking. Set confirm to true only when you intend to reset this camera."
+    },
+    "restart_in_progress": {
+      "message": "Camera restart recovery is already in progress. Wait for the camera to reconnect."
     }
   }
 }

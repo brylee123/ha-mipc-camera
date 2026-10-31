@@ -2,9 +2,14 @@
 
 from dataclasses import dataclass
 
-from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.components.button import (
+    ButtonDeviceClass,
+    ButtonEntity,
+    ButtonEntityDescription,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import MipcError
@@ -40,11 +45,13 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: MipcConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     options = {**DEFAULT_OPTIONS, **entry.options}
-    if not options[CONF_ENABLE_PTZ]:
-        return
-    async_add_entities(
-        MipcPtzButton(entry.runtime_data, entry, desc, options) for desc in DESCRIPTIONS
-    )
+    entities = [MipcRestartButton(entry.runtime_data, entry)]
+    if options[CONF_ENABLE_PTZ]:
+        entities.extend(
+            MipcPtzButton(entry.runtime_data, entry, desc, options)
+            for desc in DESCRIPTIONS
+        )
+    async_add_entities(entities)
 
 
 class MipcPtzButton(MipcEntity, ButtonEntity):
@@ -70,3 +77,17 @@ class MipcPtzButton(MipcEntity, ButtonEntity):
                 translation_key="movement_failed",
                 translation_placeholders={"error": type(err).__name__},
             ) from err
+
+
+class MipcRestartButton(MipcEntity, ButtonEntity):
+    _attr_translation_key = "restart"
+    _attr_device_class = ButtonDeviceClass.RESTART
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._id}_restart"
+
+    async def async_press(self):
+        await self.coordinator.async_restart()
