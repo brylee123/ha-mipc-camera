@@ -139,3 +139,23 @@ Verified on an f300: native local `alert` / `motion_alert` delivery while pan
 movement changed its view. Physical movement, other models and continuous
 long-duration operation still need separate validation. IO, snapshot and recording
 actions were disabled for testing, with original settings restored afterward.
+
+## Video quality
+
+The **Video quality** dropdown shows unique measured frame sizes, such as
+**1920 × 1080** and **640 × 360**, when at least two resolutions are verified.
+Discovery decodes a frame from each advertised local profile using Home Assistant's
+media decoder. This can add several seconds to initial setup. Failed probes are
+not shown as working choices. Firmware labels such as D1/CIF are never translated
+into assumed resolutions; profiles with identical dimensions share one choice.
+
+Measurements are cached in the configuration entry so choosing a quality does not
+reprobe all streams. Firmware or advertised-profile changes invalidate that cache.
+When fewer than two sizes were measured, discovery retries on a later reload.
+Selecting a quality decodes a fresh frame and verifies its dimensions before saving the profile, then
+reloads the integration, closing the previous stream, including a preloaded one.
+Video and motion listening briefly reconnect. Existing entities and other options
+are preserved. Snapshots and encoder/recording configuration are unchanged.
+
+On the tested f300, p0 decoded at 1920×1080; p1/D1 and p2/CIF both decoded at
+640×360. These are measurements of this device, not assumptions about other models.

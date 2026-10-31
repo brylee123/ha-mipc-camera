@@ -289,3 +289,53 @@ def test_event_session_failure_closes_without_affecting_controls(failure):
         event.close.assert_called_once()
         control.close.assert_not_called()
         hub.close()
+
+
+def test_profile_discovery_uses_bounded_decoder_and_returns_measured_metadata():
+    from custom_components.mipc_camera._vendor.mipc_camera_client.profiles import (
+        StreamProfile,
+    )
+
+    c = client()
+
+    def probe(decode):
+        width, height = decode("rtmp://192.0.2.10/test")
+        return [StreamProfile("p0", "HD1080p", width, height)]
+
+    c.probe_stream_profiles.side_effect = probe
+    media = MagicMock()
+    media.__enter__.return_value.decode.return_value = iter(
+        [MagicMock(width=1920, height=1080)]
+    )
+    with (
+        patch("custom_components.mipc_camera.api.MipcCameraClient", return_value=c),
+        patch("av.open", return_value=media) as decoder,
+    ):
+        hub = MipcHub("192.0.2.10", "", "private")
+        hub.connect()
+        assert hub.discover_stream_profiles() == [
+            {"token": "p0", "name": "HD1080p", "width": 1920, "height": 1080}
+        ]
+        assert decoder.call_args.kwargs["timeout"] == (8, 8)
+        hub.close()
+
+
+def test_profile_selection_requires_matching_fresh_frame_before_saving():
+    c = client()
+    with patch("custom_components.mipc_camera.api.MipcCameraClient", return_value=c):
+        hub = MipcHub("192.0.2.10", "", "private")
+        hub.connect()
+        with patch.object(hub, "_decode_stream_dimensions", return_value=(640, 360)):
+            hub.check_stream_profile("p1", 640, 360)
+            with pytest.raises(MipcProtocolError):
+                hub.check_stream_profile("p0", 1920, 1080)
+        hub.close()
+
+
+def test_empty_media_is_a_protocol_error_instead_of_an_executor_stop_iteration():
+    from custom_components.mipc_camera.api import MipcHub
+
+    media = MagicMock()
+    media.__enter__.return_value.decode.return_value = iter([])
+    with patch("av.open", return_value=media), pytest.raises(MipcProtocolError):
+        MipcHub._decode_stream_dimensions("rtmp://192.0.2.10/test")

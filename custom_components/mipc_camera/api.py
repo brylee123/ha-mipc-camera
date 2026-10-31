@@ -148,6 +148,38 @@ class MipcHub:
             client.close()
             raise
 
+    @staticmethod
+    def _decode_stream_dimensions(url: str) -> tuple[int, int]:
+        import av
+
+        with (
+            av.logging.Capture(local=True),
+            av.open(
+                url, mode="r", timeout=(8, 8), options={"rtmp_live": "live"}
+            ) as container,
+        ):
+            frame = next(container.decode(video=0), None)
+            if frame is None:
+                raise MipcProtocolError("ccm_play")
+            return frame.width, frame.height
+
+    def discover_stream_profiles(self) -> list[dict]:
+        """Decode local frames once; advertised names do not prove resolutions."""
+        with self._lock:
+            return [
+                {"token": p.token, "name": p.name, "width": p.width, "height": p.height}
+                for p in self._get_client().probe_stream_profiles(
+                    self._decode_stream_dimensions
+                )
+            ]
+
+    def check_stream_profile(self, token: str, width: int, height: int) -> None:
+        """Require a fresh frame of the requested size before saving a selection."""
+        with self._lock:
+            url = self._get_client().get_stream_url(token)
+            if self._decode_stream_dimensions(url) != (width, height):
+                raise MipcProtocolError("ccm_play")
+
     def snapshot(self) -> bytes:
         with self._lock:
             return self._get_client().get_image()

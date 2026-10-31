@@ -4,8 +4,12 @@ Getters return complete documents so read/modify/write setters preserve firmware
 extensions. No device capabilities are inferred from a model name.
 """
 
+from collections.abc import Callable
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any, TypedDict
+
+from .profiles import StreamProfile, stream_profiles
 
 
 class MipcError(Exception):
@@ -202,6 +206,39 @@ class SettingsMixin:
         ):
             raise MipcProtocolError("ccm_video_srcs_get")
         return deepcopy(sources)
+
+    def get_stream_profiles(self) -> list[StreamProfile]:
+        """Discover playback quality tokens; no encoder settings are changed."""
+        return stream_profiles(self.get_device_info())
+
+    def probe_stream_profiles(
+        self, decoder: Callable[[str], tuple[int, int]]
+    ) -> list[StreamProfile]:
+        """Measure advertised streams using a caller-supplied bounded decoder.
+
+        The decoder receives a private local media URL and returns frame width,
+        height. No media dependency is required by the SDK. Failed/invalid probes
+        retain the advertised profile with unknown dimensions; names are never
+        converted into assumed resolutions. This opens streams, not encoder writes.
+        """
+        profiles = []
+        for profile in self.get_stream_profiles():
+            try:
+                dimensions = decoder(self.get_stream_url(profile.token))
+                if not isinstance(dimensions, (tuple, list)) or len(dimensions) != 2:
+                    raise ValueError("Invalid frame dimensions")
+                width, height = dimensions
+                if any(
+                    type(n) is not int or not 1 <= n <= 16384 for n in (width, height)
+                ):
+                    raise ValueError("Invalid frame dimensions")
+                profile = replace(profile, width=width, height=height)
+            except MipcAuthenticationError:
+                raise
+            except (MipcError, OSError, ValueError, StopIteration):
+                pass
+            profiles.append(profile)
+        return profiles
 
     def get_network(
         self,
