@@ -7,6 +7,7 @@ from homeassistant.const import Platform
 DOMAIN = "mipc_camera"
 PLATFORMS = [
     Platform.CAMERA,
+    Platform.MEDIA_PLAYER,
     Platform.EVENT,
     Platform.NUMBER,
     Platform.SWITCH,

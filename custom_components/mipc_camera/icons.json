@@ -121,6 +121,11 @@
       "tilt_down": {
         "default": "mdi:arrow-down"
       }
+    },
+    "media_player": {
+      "speaker": {
+        "default": "mdi:speaker"
+      }
     }
   }
 }

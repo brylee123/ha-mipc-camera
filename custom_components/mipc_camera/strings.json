@@ -224,6 +224,11 @@
           }
         }
       }
+    },
+    "media_player": {
+      "speaker": {
+        "name": "Speaker"
+      }
     }
   },
   "services": {
@@ -310,6 +315,9 @@
     },
     "restart_in_progress": {
       "message": "Camera restart recovery is already in progress. Wait for the camera to reconnect."
+    },
+    "invalid_audio": {
+      "message": "Choose a short audio file or an audio media source. Queues and playlists are not supported."
     }
   }
 }

@@ -7,11 +7,13 @@ because firmware-specific extension fields must survive read/modify/write.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from copy import deepcopy
+from threading import Event
 from typing import Any
 from urllib.parse import urlsplit
 
+from .audio import AudioSendResult
 from .device_settings import NetworkInterface, network_interfaces, recording_mode
 from .settings import MipcProtocolError
 
@@ -644,6 +646,39 @@ class OperationsMixin:
     ) -> str:
         """Negotiate talk transport only; encoding/sending microphone audio is caller-owned."""
         return self._media_url("ccm_talk", token, protocol, allow_remote)
+
+    def send_audio(
+        self,
+        pcm: bytes | Iterable[bytes],
+        token: str = "p0",
+        *,
+        timeout: float = 10,
+        stop_event: Event | None = None,
+    ) -> AudioSendResult:
+        """Send interruptible PCM16 mono 16 kHz using optional PyAV.
+
+        Publishes AAC over local RTMP. Does not change volume/mute, use a cloud
+        relay, or retry failed uploads. This client is locked until completion.
+        """
+        from .audio import send_pcm
+
+        return send_pcm(self, pcm, token, timeout, stop_event)
+
+    def get_external_switch_enabled(self) -> bool:
+        """Read the Android client's external-switch flag; meaning is model-specific."""
+        data = self.call("ccm_exsw_get")
+        value = data.get("enable")
+        if type(value) not in (int, bool) or value not in (0, 1):
+            raise MipcProtocolError("ccm_exsw_get")
+        return bool(value)
+
+    def get_sleep_config(self) -> dict[str, Any]:
+        """Read a complete Android sleep document, where supported by firmware."""
+        return self.call("ccm_sleep_get")
+
+    def get_crop_zoom(self, token: str = "vs0") -> dict[str, Any]:
+        """Read Android crop/zoom configuration without guessing coordinate units."""
+        return self.call("ccm_crop_zoom_get", token=token)
 
     def request_snapshot(self, token: str = "p0") -> dict[str, Any]:
         return self.call("ccm_snapshot", token=token)
