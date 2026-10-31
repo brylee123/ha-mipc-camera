@@ -115,6 +115,7 @@ async def test_options_reload_the_existing_entry(hass, hub):
         result = await hass.config_entries.options.async_init(config.entry_id)
         assert result["type"] is FlowResultType.FORM
         options = {
+            "motion_events": False,
             "enable_ptz": True,
             "enable_stream": False,
             "stream_token": "p1",

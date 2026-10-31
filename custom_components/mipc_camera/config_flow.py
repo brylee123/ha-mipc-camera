@@ -134,6 +134,7 @@ class MipcOptionsFlow(config_entries.OptionsFlow):
         options = {**DEFAULT_OPTIONS, **self.config_entry.options}
         schema = vol.Schema(
             {
+                vol.Required("motion_events", default=options["motion_events"]): bool,
                 vol.Required("enable_ptz", default=options["enable_ptz"]): bool,
                 vol.Required("enable_stream", default=options["enable_stream"]): bool,
                 vol.Required("stream_token", default=options["stream_token"]): vol.In(

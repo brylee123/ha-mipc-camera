@@ -111,6 +111,7 @@ class MipcHub:
             "misc": client.get_misc,
             "osd": client.get_osd,
             "alerts": client.get_alert_config,
+            "alert_actions": client.get_alert_actions,
             "recording": client.get_recording,
             "disks": client.get_disks,
         }
@@ -134,6 +135,18 @@ class MipcHub:
         self.settings, self.errors = settings, errors
         self.last_seen = datetime.now(timezone.utc)
         return {"settings": settings, "errors": errors}
+
+    def create_event_client(self) -> MipcCameraClient:
+        """Open a separate identity-checked session; long polls never lock controls."""
+        client = MipcCameraClient(self.host, timeout=6)
+        try:
+            if client.get_device_sn() != self.serial_number:
+                raise MipcProtocolError("identity_changed")
+            client.login(self.username or self.serial_number, self._password)
+            return client
+        except BaseException:
+            client.close()
+            raise
 
     def snapshot(self) -> bytes:
         with self._lock:

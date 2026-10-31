@@ -2,12 +2,49 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .settings import MipcError, MipcProtocolError
 
 if TYPE_CHECKING:
     from . import MipcCameraClient
+
+
+@dataclass(frozen=True)
+class MotionEvent:
+    """A camera's local alert pulse, not an occupancy or motion-clear state.
+
+    This schema was observed on an f300. Other event types/codes and malformed
+    items are ignored. The device serial is deliberately excluded from repr.
+    """
+
+    serial_number: str = field(repr=False)
+    message_id: int
+    timestamp: int
+
+    @classmethod
+    def from_message(cls, item: Any) -> MotionEvent | None:
+        if not isinstance(item, dict) or (item.get("type"), item.get("code")) != (
+            "alert",
+            "motion_alert",
+        ):
+            return None
+        serial, message_id, timestamp = (
+            item.get("sn"),
+            item.get("msg_id"),
+            item.get("date"),
+        )
+        if (
+            not isinstance(serial, str)
+            or not serial
+            or type(message_id) is not int
+            or message_id <= 0
+            or type(timestamp) is not int
+            or timestamp <= 0
+        ):
+            return None
+        return cls(serial, message_id, timestamp)
 
 
 def queue_message(response: Any) -> dict:

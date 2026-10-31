@@ -15,6 +15,7 @@ from homeassistant.helpers import config_validation as cv
 from .api import MipcAuthenticationError, MipcError, MipcHub
 from .const import (
     CONF_ENABLE_PTZ,
+    CONF_MOTION_EVENTS,
     CONF_PAN_SPEED,
     CONF_TILT_SPEED,
     DEFAULT_OPTIONS,
@@ -22,6 +23,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import MipcConfigEntry, MipcCoordinator
+from .motion import MipcMotionCoordinator, motion_supported
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -96,7 +98,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool
         coordinator = MipcCoordinator(hass, entry, hub)
         await coordinator.async_config_entry_first_refresh()
         entry.runtime_data = coordinator
+        if entry.options.get(CONF_MOTION_EVENTS, False) and motion_supported(
+            coordinator.data["settings"]
+        ):
+            coordinator.motion = MipcMotionCoordinator(coordinator)
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        if coordinator.motion:
+            coordinator.motion.start()
     except MipcAuthenticationError as error:
         await hass.async_add_executor_job(hub.close)
         raise ConfigEntryAuthFailed(
@@ -123,5 +131,7 @@ async def async_reload_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> Non
 async def async_unload_entry(hass: HomeAssistant, entry: MipcConfigEntry) -> bool:
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
+    if entry.runtime_data.motion:
+        await entry.runtime_data.motion.async_stop()
     await hass.async_add_executor_job(entry.runtime_data.hub.close)
     return True

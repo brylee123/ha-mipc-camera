@@ -252,3 +252,40 @@ def test_optional_metadata_cannot_replace_camera_identity():
         hub.info["ver"] = "fallback-version"
         assert hub.firmware == "fallback-version"
         hub.close()
+
+
+def test_event_session_is_separate_and_pins_device_identity():
+    control, event = client(), client()
+    event.get_device_sn.return_value = "test-device"
+    with patch(
+        "custom_components.mipc_camera.api.MipcCameraClient",
+        side_effect=[control, event],
+    ):
+        hub = MipcHub("192.0.2.10", "", "private")
+        hub.connect()
+        connection = hub.create_event_client()
+        assert connection is event and connection is not control
+        event.login.assert_called_once_with("test-device", "private")
+        connection.close()
+        hub.close()
+
+
+@pytest.mark.parametrize("failure", ["identity", "auth"])
+def test_event_session_failure_closes_without_affecting_controls(failure):
+    control, event = client(), client()
+    if failure == "identity":
+        event.get_device_sn.return_value = "different-device"
+    else:
+        event.get_device_sn.return_value = "test-device"
+        event.login.side_effect = MipcAuthenticationError("login")
+    with patch(
+        "custom_components.mipc_camera.api.MipcCameraClient",
+        side_effect=[control, event],
+    ):
+        hub = MipcHub("192.0.2.10", "", "private")
+        hub.connect()
+        with pytest.raises((MipcProtocolError, MipcAuthenticationError)):
+            hub.create_event_client()
+        event.close.assert_called_once()
+        control.close.assert_not_called()
+        hub.close()
